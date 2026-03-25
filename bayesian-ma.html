@@ -1,0 +1,1650 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bayesian Random-Effects Meta-Analysis</title>
+<style>
+/* ===== CSS Variables + Dark Mode ===== */
+:root {
+  --color-primary: #2563eb;
+  --color-primary-dark: #1d4ed8;
+  --color-primary-light: #dbeafe;
+  --color-accent: #7c3aed;
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
+  --color-danger: #ef4444;
+  --color-info: #06b6d4;
+  --bg-primary: #ffffff;
+  --bg-secondary: #f8fafc;
+  --bg-tertiary: #f1f5f9;
+  --surface-raised: #ffffff;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
+  --border-color: #e2e8f0;
+  --border-focus: #2563eb;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1);
+  --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1);
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px;
+  --space-5: 20px; --space-6: 24px; --space-8: 32px;
+  --font-mono: 'Consolas', 'Monaco', monospace;
+}
+
+body.dark-mode {
+  --color-primary: #60a5fa;
+  --color-primary-dark: #93bbfd;
+  --color-primary-light: #1e3a5f;
+  --color-accent: #a78bfa;
+  --color-success: #34d399;
+  --color-warning: #fbbf24;
+  --color-danger: #f87171;
+  --color-info: #22d3ee;
+  --bg-primary: #0f172a;
+  --bg-secondary: #1e293b;
+  --bg-tertiary: #334155;
+  --surface-raised: #1e293b;
+  --text-primary: #f1f5f9;
+  --text-secondary: #cbd5e1;
+  --text-muted: #64748b;
+  --border-color: #334155;
+  --border-focus: #60a5fa;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
+  --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.4);
+  --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.4);
+}
+
+/* ===== Reset + Base ===== */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  line-height: 1.6;
+  min-height: 100vh;
+}
+
+/* ===== Header ===== */
+.app-header {
+  background: var(--bg-primary);
+  border-bottom: 1px solid var(--border-color);
+  padding: var(--space-4) var(--space-6);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: var(--shadow-sm);
+}
+.app-header h1 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--color-primary);
+}
+.app-header .subtitle {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin-left: var(--space-3);
+}
+.header-controls { display: flex; gap: var(--space-3); align-items: center; }
+.btn-icon {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-3);
+  cursor: pointer;
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  transition: background 0.15s;
+}
+.btn-icon:hover { background: var(--border-color); }
+
+/* ===== Tab Navigation ===== */
+.tab-nav {
+  display: flex;
+  background: var(--bg-primary);
+  border-bottom: 2px solid var(--border-color);
+  padding: 0 var(--space-6);
+}
+.tab-nav [role="tab"] {
+  padding: var(--space-3) var(--space-5);
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  transition: color 0.15s, border-color 0.15s;
+}
+.tab-nav [role="tab"]:hover { color: var(--text-primary); }
+.tab-nav [role="tab"][aria-selected="true"] {
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
+  font-weight: 600;
+}
+
+/* ===== Tab Panels ===== */
+.tab-panel { display: none; padding: var(--space-6); max-width: 1100px; margin: 0 auto; }
+.tab-panel.active { display: block; }
+
+/* ===== Cards ===== */
+.card {
+  background: var(--surface-raised);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+  margin-bottom: var(--space-5);
+  box-shadow: var(--shadow-sm);
+}
+.card h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: var(--space-4);
+  color: var(--text-primary);
+}
+
+/* ===== Form Controls ===== */
+label { font-size: 0.85rem; font-weight: 500; color: var(--text-secondary); display: block; margin-bottom: var(--space-1); }
+input[type="text"], input[type="number"], select, textarea {
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  transition: border-color 0.15s;
+}
+input:focus, select:focus, textarea:focus { outline: none; border-color: var(--border-focus); box-shadow: 0 0 0 3px rgba(37,99,235,0.15); }
+textarea { font-family: var(--font-mono); font-size: 0.8rem; resize: vertical; }
+
+/* ===== Buttons ===== */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, box-shadow 0.15s;
+}
+.btn-primary { background: var(--color-primary); color: #fff; }
+.btn-primary:hover { background: var(--color-primary-dark); }
+.btn-secondary { background: var(--bg-tertiary); color: var(--text-primary); border-color: var(--border-color); }
+.btn-secondary:hover { background: var(--border-color); }
+.btn-success { background: var(--color-success); color: #fff; }
+.btn-danger { background: var(--color-danger); color: #fff; }
+.btn-sm { padding: var(--space-1) var(--space-3); font-size: 0.8rem; }
+
+/* ===== Data Table ===== */
+.data-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.data-table th, .data-table td {
+  padding: var(--space-2) var(--space-3);
+  text-align: left;
+  border-bottom: 1px solid var(--border-color);
+}
+.data-table th { background: var(--bg-tertiary); font-weight: 600; color: var(--text-secondary); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; }
+.data-table tr:hover { background: var(--bg-secondary); }
+.data-table input { width: 100%; padding: var(--space-1) var(--space-2); font-size: 0.85rem; }
+
+/* ===== Grid helpers ===== */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--space-4); }
+.grid-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: var(--space-4); }
+.flex-row { display: flex; gap: var(--space-3); align-items: center; flex-wrap: wrap; }
+
+/* ===== Result cards ===== */
+.stat-card {
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  text-align: center;
+}
+.stat-card .stat-label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+.stat-card .stat-value { font-size: 1.3rem; font-weight: 700; color: var(--color-primary); margin-top: var(--space-1); }
+.stat-card .stat-sub { font-size: 0.75rem; color: var(--text-secondary); margin-top: var(--space-1); }
+
+/* ===== SVG containers ===== */
+.svg-container { width: 100%; overflow-x: auto; }
+.svg-container svg { display: block; margin: 0 auto; }
+
+/* ===== Alert ===== */
+.alert {
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  margin-bottom: var(--space-4);
+}
+.alert-info { background: var(--color-primary-light); border-left: 3px solid var(--color-info); color: var(--text-primary); }
+.alert-warning { background: #fef3c7; border-left: 3px solid var(--color-warning); }
+body.dark-mode .alert-warning { background: #78350f33; }
+
+/* ===== Responsive ===== */
+@media (max-width: 768px) {
+  .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+  .tab-nav { overflow-x: auto; }
+  .tab-panel { padding: var(--space-4); }
+}
+
+/* ===== Scrollbar ===== */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: var(--bg-secondary); }
+::-webkit-scrollbar-thumb { background: var(--text-muted); border-radius: 4px; }
+
+/* ===== Print ===== */
+@media print {
+  .app-header, .tab-nav, .btn, .no-print { display: none !important; }
+  .tab-panel { display: block !important; padding: 0; }
+  .card { break-inside: avoid; box-shadow: none; border: 1px solid #ccc; }
+}
+
+/* ===== Pre/code ===== */
+pre.code-block {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: var(--space-4);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  color: var(--text-primary);
+}
+</style>
+</head>
+<body>
+
+<!-- ===== HEADER ===== -->
+<header class="app-header">
+  <div style="display:flex;align-items:baseline;">
+    <h1>Bayesian Random-Effects Meta-Analysis</h1>
+    <span class="subtitle">Normal-Normal Hierarchical Model with Grid Approximation</span>
+  </div>
+  <div class="header-controls">
+    <button class="btn-icon" id="btnDarkMode" title="Toggle dark mode" aria-label="Toggle dark mode">Dark</button>
+    <button class="btn-icon" id="btnReset" title="Reset all data">Reset</button>
+  </div>
+</header>
+
+<!-- ===== TAB NAV ===== -->
+<nav class="tab-nav" role="tablist" aria-label="Main navigation">
+  <button role="tab" id="tabData" aria-selected="true" aria-controls="panelData" tabindex="0">Data</button>
+  <button role="tab" id="tabPriors" aria-selected="false" aria-controls="panelPriors" tabindex="-1">Priors</button>
+  <button role="tab" id="tabResults" aria-selected="false" aria-controls="panelResults" tabindex="-1">Results</button>
+  <button role="tab" id="tabReport" aria-selected="false" aria-controls="panelReport" tabindex="-1">Report</button>
+</nav>
+
+<!-- ===== TAB 1: DATA ===== -->
+<div class="tab-panel active" id="panelData" role="tabpanel" aria-labelledby="tabData">
+
+  <div class="card">
+    <h3>Effect Type &amp; Built-in Examples</h3>
+    <div class="grid-3" style="align-items:end;">
+      <div>
+        <label for="selEffectType">Effect measure</label>
+        <select id="selEffectType">
+          <option value="logOR">log-OR (log Odds Ratio)</option>
+          <option value="logRR">log-RR (log Risk Ratio)</option>
+          <option value="SMD">SMD (Standardized Mean Difference)</option>
+          <option value="MD">MD (Mean Difference)</option>
+        </select>
+      </div>
+      <div>
+        <label>Load example dataset</label>
+        <div class="flex-row">
+          <button class="btn btn-secondary btn-sm" id="btnExMg">Magnesium for MI</button>
+          <button class="btn btn-secondary btn-sm" id="btnExAspirin">Aspirin for Stroke</button>
+        </div>
+      </div>
+      <div>
+        <label>Studies loaded</label>
+        <div id="studyCount" style="font-size:1.1rem;font-weight:600;color:var(--color-primary);">0</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Study Data</h3>
+    <div class="alert alert-info">
+      Enter study name, effect size (on chosen scale), and standard error (SE). For log-OR/log-RR, enter values on the log scale.
+    </div>
+    <div style="overflow-x:auto;">
+      <table class="data-table" id="dataTable">
+        <thead>
+          <tr>
+            <th style="width:30%;">Study</th>
+            <th style="width:25%;">Effect (yi)</th>
+            <th style="width:25%;">SE (sei)</th>
+            <th style="width:20%;">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="dataTableBody">
+        </tbody>
+      </table>
+    </div>
+    <div class="flex-row" style="margin-top:var(--space-3);">
+      <button class="btn btn-primary btn-sm" id="btnAddRow">+ Add Row</button>
+      <button class="btn btn-danger btn-sm" id="btnClearRows">Clear All</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Paste CSV Data</h3>
+    <div class="alert alert-info">Paste CSV with columns: study, effect, se (header row optional). Tab or comma separated.</div>
+    <textarea id="csvPaste" rows="5" placeholder="Study1, -0.52, 0.35&#10;Study2, -0.18, 0.44"></textarea>
+    <button class="btn btn-primary btn-sm" style="margin-top:var(--space-2);" id="btnParseCsv">Parse CSV</button>
+  </div>
+</div>
+
+<!-- ===== TAB 2: PRIORS ===== -->
+<div class="tab-panel" id="panelPriors" role="tabpanel" aria-labelledby="tabPriors">
+
+  <div class="card">
+    <h3>Prior for Grand Mean (mu)</h3>
+    <div class="alert alert-info">Normal prior: mu ~ N(m0, s0&sup2;). A vague prior uses large s0 (e.g., 10). A skeptical prior centers at 0 with moderate s0.</div>
+    <div class="grid-3">
+      <div>
+        <label for="priorMuMean">Prior mean (m0)</label>
+        <input type="number" id="priorMuMean" value="0" step="0.1">
+      </div>
+      <div>
+        <label for="priorMuSD">Prior SD (s0)</label>
+        <input type="number" id="priorMuSD" value="10" step="0.1" min="0.01">
+      </div>
+      <div>
+        <label>Prior description</label>
+        <div id="priorMuDesc" style="font-size:0.85rem;color:var(--text-secondary);padding-top:var(--space-2);">Vague: N(0, 10&sup2;)</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Prior for Heterogeneity (tau)</h3>
+    <div class="alert alert-info">Half-Cauchy prior: tau ~ Half-Cauchy(scale). Recommended by Polson &amp; Scott (2012). Scale controls how much heterogeneity is plausible a priori.</div>
+    <div class="grid-3">
+      <div>
+        <label for="priorTauScale">Half-Cauchy scale</label>
+        <input type="number" id="priorTauScale" value="0.5" step="0.05" min="0.01">
+      </div>
+      <div>
+        <label for="priorTauMax">Grid max (tau_max = 3 * scale)</label>
+        <input type="number" id="priorTauMax" value="1.5" step="0.1" min="0.1" readonly>
+      </div>
+      <div>
+        <label>Grid points</label>
+        <div style="font-size:0.85rem;color:var(--text-secondary);padding-top:var(--space-2);">500 points (fixed)</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Prior Sensitivity Analysis</h3>
+    <div class="alert alert-info">Automatically runs the model under 3 prior settings to assess robustness: Vague (s0=10, scale=1), Weakly Informative (s0=1, scale=0.5), and Skeptical (s0=0.5, scale=0.25).</div>
+    <div id="sensitivityConfig">
+      <table class="data-table">
+        <thead>
+          <tr><th>Scenario</th><th>mu prior</th><th>tau prior</th><th>Description</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Vague</td><td>N(0, 10&sup2;)</td><td>HC(1.0)</td><td>Minimal prior information</td></tr>
+          <tr><td>Weakly Informative</td><td>N(0, 1&sup2;)</td><td>HC(0.5)</td><td>Moderate constraint</td></tr>
+          <tr><td>Skeptical</td><td>N(0, 0.5&sup2;)</td><td>HC(0.25)</td><td>Strong skepticism toward large effects</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div style="text-align:center;margin-top:var(--space-4);">
+    <button class="btn btn-primary" id="btnRunAnalysis" style="padding:var(--space-3) var(--space-8);font-size:1rem;">Run Bayesian Analysis</button>
+  </div>
+</div>
+
+<!-- ===== TAB 3: RESULTS ===== -->
+<div class="tab-panel" id="panelResults" role="tabpanel" aria-labelledby="tabResults">
+
+  <div id="resultsPlaceholder" class="card" style="text-align:center;color:var(--text-muted);padding:var(--space-8);">
+    No results yet. Enter data and run the analysis from the Priors tab.
+  </div>
+
+  <div id="resultsContent" style="display:none;">
+
+    <div class="card">
+      <h3>Posterior Summary: Grand Mean (mu)</h3>
+      <div class="grid-4" id="muStats">
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Posterior Summary: Heterogeneity (tau)</h3>
+      <div class="grid-4" id="tauStats">
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Bayesian Forest Plot</h3>
+      <div class="svg-container" id="forestPlotContainer"></div>
+    </div>
+
+    <div class="card">
+      <h3>Posterior Density Plots</h3>
+      <div class="grid-2">
+        <div>
+          <h4 style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:var(--space-2);">Grand Mean (mu) Posterior</h4>
+          <div class="svg-container" id="muDensityContainer"></div>
+        </div>
+        <div>
+          <h4 style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:var(--space-2);">Heterogeneity (tau) Posterior</h4>
+          <div class="svg-container" id="tauDensityContainer"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Shrinkage Table</h3>
+      <div class="alert alert-info">Shows how each study's estimate is shrunk toward the grand mean. Shrinkage factor = 1 means complete shrinkage; 0 means no shrinkage.</div>
+      <div style="overflow-x:auto;">
+        <table class="data-table" id="shrinkageTable">
+          <thead>
+            <tr><th>Study</th><th>Original (yi)</th><th>Posterior Mean</th><th>Shrinkage Factor</th><th>95% CrI</th></tr>
+          </thead>
+          <tbody id="shrinkageTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Model Fit (DIC-like Criterion)</h3>
+      <div class="grid-3" id="dicStats"></div>
+    </div>
+
+    <div class="card">
+      <h3>Prior Sensitivity Analysis</h3>
+      <div style="overflow-x:auto;">
+        <table class="data-table" id="sensitivityTable">
+          <thead>
+            <tr><th>Scenario</th><th>mu Mean</th><th>mu 95% CrI</th><th>tau Mean</th><th>tau 95% CrI</th><th>P(mu&lt;0)</th></tr>
+          </thead>
+          <tbody id="sensitivityTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ===== TAB 4: REPORT ===== -->
+<div class="tab-panel" id="panelReport" role="tabpanel" aria-labelledby="tabReport">
+
+  <div id="reportPlaceholder" class="card" style="text-align:center;color:var(--text-muted);padding:var(--space-8);">
+    Run the analysis first to generate the report.
+  </div>
+
+  <div id="reportContent" style="display:none;">
+
+    <div class="card">
+      <h3>Methods Text</h3>
+      <div id="methodsText" style="font-size:0.9rem;line-height:1.8;"></div>
+    </div>
+
+    <div class="card">
+      <h3>R Code Equivalent</h3>
+      <pre class="code-block" id="rCode"></pre>
+    </div>
+
+    <div class="card">
+      <h3>Export</h3>
+      <div class="flex-row">
+        <button class="btn btn-primary btn-sm" id="btnExportCSV">Export CSV</button>
+        <button class="btn btn-primary btn-sm" id="btnExportJSON">Export JSON</button>
+        <button class="btn btn-secondary btn-sm" id="btnPrint">Print Report</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   Bayesian Random-Effects Meta-Analysis — IIFE
+   Normal-Normal Hierarchical Model with Grid Approximation
+   ============================================================ */
+(function() {
+  'use strict';
+
+  /* ---------- Constants ---------- */
+  var STORAGE_KEY = 'bayesianMA_v1';
+  var GRID_POINTS = 500;
+
+  /* ---------- Utility: escapeHtml ---------- */
+  function escapeHtml(s) {
+    if (s == null) return '';
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  /* ---------- CSV formula injection prevention ---------- */
+  function sanitizeCSVCell(val) {
+    var s = String(val);
+    if (/^[=+@\t\r]/.test(s)) return "'" + s;
+    return s;
+  }
+
+  /* ---------- Normal CDF (Abramowitz-Stegun 26.2.17) ---------- */
+  function normalCDF(x) {
+    if (x === 0) return 0.5;
+    var neg = x < 0;
+    if (neg) x = -x;
+    var t = 1 / (1 + 0.2316419 * x);
+    var d = 0.3989422804014327;
+    var p = d * Math.exp(-0.5 * x * x) *
+      (t * (0.319381530 + t * (-0.356563782 + t * (1.781477937 + t * (-1.821255978 + t * 1.330274429)))));
+    return neg ? p : 1 - p;
+  }
+
+  /* ---------- Normal Quantile (rational approximation) ---------- */
+  function normalQuantile(p) {
+    if (p <= 0) return -Infinity;
+    if (p >= 1) return Infinity;
+    if (p === 0.5) return 0;
+    if (p < 0.5) return -normalQuantile(1 - p);
+    var t = Math.sqrt(-2 * Math.log(1 - p));
+    var c0 = 2.515517, c1 = 0.802853, c2 = 0.010328;
+    var d1 = 1.432788, d2 = 0.189269, d3 = 0.001308;
+    return t - (c0 + c1 * t + c2 * t * t) / (1 + d1 * t + d2 * t * t + d3 * t * t * t);
+  }
+
+  /* ---------- Normal PDF ---------- */
+  function normalPDF(x, mu, sigma) {
+    var z = (x - mu) / sigma;
+    return Math.exp(-0.5 * z * z) / (sigma * Math.sqrt(2 * Math.PI));
+  }
+
+  /* ---------- Log Normal PDF ---------- */
+  function logNormalPDF(x, mu, sigma) {
+    var z = (x - mu) / sigma;
+    return -0.5 * Math.log(2 * Math.PI) - Math.log(sigma) - 0.5 * z * z;
+  }
+
+  /* ---------- Half-Cauchy density ---------- */
+  function halfCauchyPDF(tau, scale) {
+    if (tau < 0) return 0;
+    return 2 / (Math.PI * scale * (1 + (tau / scale) * (tau / scale)));
+  }
+
+  /* ---------- Half-Cauchy log density ---------- */
+  function logHalfCauchyPDF(tau, scale) {
+    if (tau < 0) return -Infinity;
+    return Math.log(2) - Math.log(Math.PI) - Math.log(scale) - Math.log(1 + (tau / scale) * (tau / scale));
+  }
+
+  /* ==========================================================
+     CORE ALGORITHM: Bayesian Normal-Normal Hierarchical Model
+     Grid approximation over tau
+     ========================================================== */
+  function runBayesianMA(studies, priorMuMean, priorMuSD, priorTauScale) {
+    var k = studies.length;
+    var yi = studies.map(function(s) { return s.effect; });
+    var vi = studies.map(function(s) { return s.se * s.se; }); // variances
+    var s0sq = priorMuSD * priorMuSD;
+
+    var tauMax = 3 * priorTauScale;
+    if (tauMax < 0.5) tauMax = 0.5;
+    var tauGrid = [];
+    var dtau = tauMax / (GRID_POINTS - 1);
+    for (var g = 0; g < GRID_POINTS; g++) {
+      tauGrid.push(g * dtau);
+    }
+
+    /* --- Step 1: Compute log marginal likelihood + log prior for each tau_g --- */
+    var logPosteriorTau = new Array(GRID_POINTS);
+    var muPostMeans = new Array(GRID_POINTS);
+    var muPostSDs = new Array(GRID_POINTS);
+
+    for (var g = 0; g < GRID_POINTS; g++) {
+      var tau = tauGrid[g];
+      var tau2 = tau * tau;
+
+      // Posterior of mu given tau: conjugate normal update
+      var prec0 = 1 / s0sq;
+      var sumPrec = 0;
+      var sumWeightedY = 0;
+      for (var i = 0; i < k; i++) {
+        var w_i = 1 / (vi[i] + tau2);
+        sumPrec += w_i;
+        sumWeightedY += yi[i] * w_i;
+      }
+      var postPrec = prec0 + sumPrec;
+      var postMean = (priorMuMean * prec0 + sumWeightedY) / postPrec;
+      var postVar = 1 / postPrec;
+      var postSD = Math.sqrt(postVar);
+
+      muPostMeans[g] = postMean;
+      muPostSDs[g] = postSD;
+
+      // Log marginal likelihood: integrate mu out analytically
+      // p(y | tau) = prod_i N(y_i; postMean_integrated, sqrt(v_i + tau2))
+      // But the correct marginal is:
+      // log p(y|tau) = -k/2 * log(2*pi) - 0.5*sum(log(v_i+tau2))
+      //               + 0.5*log(postVar) - 0.5*log(s0sq)
+      //               - 0.5*(sum(y_i^2/(v_i+tau2)) + m0^2/s0^2 - postMean^2*postPrec)
+      var logML = -0.5 * k * Math.log(2 * Math.PI);
+      var sumLogVi = 0;
+      var sumYsqW = 0;
+      for (var i = 0; i < k; i++) {
+        sumLogVi += Math.log(vi[i] + tau2);
+        sumYsqW += yi[i] * yi[i] / (vi[i] + tau2);
+      }
+      logML += -0.5 * sumLogVi;
+      logML += 0.5 * Math.log(postVar) - 0.5 * Math.log(s0sq);
+      logML += -0.5 * (sumYsqW + priorMuMean * priorMuMean / s0sq - postMean * postMean * postPrec);
+
+      // Log prior for tau: Half-Cauchy
+      var logPrior = (tau === 0) ? logHalfCauchyPDF(dtau * 0.01, priorTauScale) : logHalfCauchyPDF(tau, priorTauScale);
+
+      logPosteriorTau[g] = logML + logPrior;
+    }
+
+    /* --- Step 2: Normalize tau posterior --- */
+    var maxLogP = -Infinity;
+    for (var g = 0; g < GRID_POINTS; g++) {
+      if (logPosteriorTau[g] > maxLogP) maxLogP = logPosteriorTau[g];
+    }
+    var sumP = 0;
+    var posteriorTau = new Array(GRID_POINTS);
+    for (var g = 0; g < GRID_POINTS; g++) {
+      posteriorTau[g] = Math.exp(logPosteriorTau[g] - maxLogP);
+      sumP += posteriorTau[g] * dtau;
+    }
+    for (var g = 0; g < GRID_POINTS; g++) {
+      posteriorTau[g] /= sumP;
+    }
+
+    /* --- Step 3: Posterior of mu (mixture of normals weighted by tau posterior) --- */
+    // Weighted mean and variance using law of total expectation/variance
+    var muMean = 0;
+    var muMeanSq = 0;
+    for (var g = 0; g < GRID_POINTS; g++) {
+      var wt = posteriorTau[g] * dtau;
+      muMean += muPostMeans[g] * wt;
+      muMeanSq += (muPostMeans[g] * muPostMeans[g] + muPostSDs[g] * muPostSDs[g]) * wt;
+    }
+    var muVar = muMeanSq - muMean * muMean;
+    var muSD = Math.sqrt(Math.max(0, muVar));
+
+    // Quantiles via CDF of mixture
+    function muMixtureCDF(x) {
+      var cdf = 0;
+      for (var g = 0; g < GRID_POINTS; g++) {
+        cdf += posteriorTau[g] * dtau * normalCDF((x - muPostMeans[g]) / muPostSDs[g]);
+      }
+      return cdf;
+    }
+
+    function muMixtureQuantile(p) {
+      var lo = muMean - 6 * muSD;
+      var hi = muMean + 6 * muSD;
+      for (var iter = 0; iter < 100; iter++) {
+        var mid = (lo + hi) / 2;
+        if (muMixtureCDF(mid) < p) lo = mid; else hi = mid;
+      }
+      return (lo + hi) / 2;
+    }
+
+    var muMedian = muMixtureQuantile(0.5);
+    var muCrILo = muMixtureQuantile(0.025);
+    var muCrIHi = muMixtureQuantile(0.975);
+    var pMuLt0 = muMixtureCDF(0);
+    var pMuGt0 = 1 - pMuLt0;
+
+    /* --- Step 4: Posterior of tau --- */
+    var tauMean = 0;
+    var tauMeanSq = 0;
+    for (var g = 0; g < GRID_POINTS; g++) {
+      var wt = posteriorTau[g] * dtau;
+      tauMean += tauGrid[g] * wt;
+      tauMeanSq += tauGrid[g] * tauGrid[g] * wt;
+    }
+    var tauSD = Math.sqrt(Math.max(0, tauMeanSq - tauMean * tauMean));
+
+    // Tau quantiles via CDF
+    function tauCDF(x) {
+      var cdf = 0;
+      for (var g = 0; g < GRID_POINTS; g++) {
+        if (tauGrid[g] <= x) cdf += posteriorTau[g] * dtau;
+      }
+      return cdf;
+    }
+
+    function tauQuantile(p) {
+      var lo = 0;
+      var hi = tauMax;
+      for (var iter = 0; iter < 100; iter++) {
+        var mid = (lo + hi) / 2;
+        if (tauCDF(mid) < p) lo = mid; else hi = mid;
+      }
+      return (lo + hi) / 2;
+    }
+
+    var tauMedian = tauQuantile(0.5);
+    var tauCrILo = tauQuantile(0.025);
+    var tauCrIHi = tauQuantile(0.975);
+
+    /* --- Step 5: Study-level shrinkage (posterior means at posterior tau mean) --- */
+    var shrinkage = [];
+    // Use the weighted average across tau grid for each study
+    for (var i = 0; i < k; i++) {
+      var studyPostMean = 0;
+      var studyPostMeanSq = 0;
+      for (var g = 0; g < GRID_POINTS; g++) {
+        var tau2 = tauGrid[g] * tauGrid[g];
+        var w_i = 1 / (vi[i] + tau2);
+        var prec_i = 1 / vi[i];
+        // Posterior for theta_i given mu, tau:
+        // theta_i | y, mu, tau ~ N( (yi/vi + mu/tau2)/(1/vi + 1/tau2), 1/(1/vi + 1/tau2) )
+        // But we integrate over mu too. Approximate: use mu posterior mean at this tau
+        var mu_g = muPostMeans[g];
+        var postPrec_i;
+        var postMean_i;
+        if (tau2 < 1e-15) {
+          // tau ~ 0: shrink completely to mu
+          postMean_i = mu_g;
+          postPrec_i = 1e15;
+        } else {
+          postPrec_i = 1 / vi[i] + 1 / tau2;
+          postMean_i = (yi[i] / vi[i] + mu_g / tau2) / postPrec_i;
+        }
+        var postVar_i = 1 / postPrec_i;
+        var wt = posteriorTau[g] * dtau;
+        studyPostMean += postMean_i * wt;
+        studyPostMeanSq += (postMean_i * postMean_i + postVar_i) * wt;
+      }
+      var studyPostVar = studyPostMeanSq - studyPostMean * studyPostMean;
+      var studyPostSD = Math.sqrt(Math.max(0, studyPostVar));
+
+      // Shrinkage factor: how much moved toward grand mean relative to distance
+      var dist = yi[i] - muMean;
+      var shrinkFactor = (Math.abs(dist) < 1e-12) ? 0 : 1 - (studyPostMean - muMean) / dist;
+
+      shrinkage.push({
+        study: studies[i].study,
+        original: yi[i],
+        posteriorMean: studyPostMean,
+        posteriorSD: studyPostSD,
+        shrinkageFactor: Math.max(0, Math.min(1, shrinkFactor)),
+        criLo: studyPostMean - 1.96 * studyPostSD,
+        criHi: studyPostMean + 1.96 * studyPostSD
+      });
+    }
+
+    /* --- Step 6: DIC-like criterion --- */
+    // D(theta_bar) = -2 * log p(y | mu_hat, tau_hat)
+    var dThetaBar = 0;
+    for (var i = 0; i < k; i++) {
+      var sigma2 = vi[i] + tauMean * tauMean;
+      dThetaBar += -2 * logNormalPDF(yi[i], muMean, Math.sqrt(sigma2));
+    }
+    // pD = effective parameters ~ k * (tau^2 / (tau^2 + vi_mean))
+    var viMean = 0;
+    for (var i = 0; i < k; i++) viMean += vi[i];
+    viMean /= k;
+    var pD = k * (tauMean * tauMean) / (tauMean * tauMean + viMean) + 1; // +1 for mu
+    var dic = dThetaBar + 2 * pD;
+
+    /* --- Density data for plots --- */
+    var muDensity = [];
+    var nDens = 200;
+    var muMin = muMean - 4 * muSD;
+    var muMax = muMean + 4 * muSD;
+    var muStep = (muMax - muMin) / (nDens - 1);
+    for (var d = 0; d < nDens; d++) {
+      var x = muMin + d * muStep;
+      var dens = 0;
+      for (var g = 0; g < GRID_POINTS; g++) {
+        dens += posteriorTau[g] * dtau * normalPDF(x, muPostMeans[g], muPostSDs[g]);
+      }
+      muDensity.push({ x: x, y: dens });
+    }
+
+    // Prior density for mu (for overlay)
+    var muPriorDensity = [];
+    for (var d = 0; d < nDens; d++) {
+      var x = muMin + d * muStep;
+      muPriorDensity.push({ x: x, y: normalPDF(x, priorMuMean, priorMuSD) });
+    }
+
+    var tauDensity = [];
+    for (var g = 0; g < GRID_POINTS; g++) {
+      tauDensity.push({ x: tauGrid[g], y: posteriorTau[g] });
+    }
+    // Prior density for tau (for overlay)
+    var tauPriorDensity = [];
+    for (var g = 0; g < GRID_POINTS; g++) {
+      tauPriorDensity.push({ x: tauGrid[g], y: halfCauchyPDF(tauGrid[g], priorTauScale) });
+    }
+
+    return {
+      mu: { mean: muMean, median: muMedian, sd: muSD, criLo: muCrILo, criHi: muCrIHi, pLt0: pMuLt0, pGt0: pMuGt0 },
+      tau: { mean: tauMean, median: tauMedian, sd: tauSD, criLo: tauCrILo, criHi: tauCrIHi },
+      shrinkage: shrinkage,
+      dic: { dbar: dThetaBar, pD: pD, dic: dic },
+      muDensity: muDensity,
+      muPriorDensity: muPriorDensity,
+      tauDensity: tauDensity,
+      tauPriorDensity: tauPriorDensity,
+      priors: { muMean: priorMuMean, muSD: priorMuSD, tauScale: priorTauScale }
+    };
+  }
+
+  /* ==========================================================
+     EXAMPLE DATASETS
+     ========================================================== */
+  var EXAMPLES = {
+    magnesium: {
+      effectType: 'logOR',
+      studies: [
+        { study: 'Morton 1984', effect: -1.649, se: 0.691 },
+        { study: 'Rasmussen 1986', effect: -2.303, se: 0.917 },
+        { study: 'Smith 1986', effect: 0.288, se: 1.122 },
+        { study: 'Abraham 1987', effect: -1.178, se: 1.166 },
+        { study: 'Feldstedt 1991', effect: -0.054, se: 0.472 },
+        { study: 'Schechter 1995', effect: -1.506, se: 0.595 },
+        { study: 'LIMIT-2 1992', effect: -0.493, se: 0.275 },
+        { study: 'ISIS-4 1995', effect: 0.023, se: 0.044 }
+      ]
+    },
+    aspirin: {
+      effectType: 'logRR',
+      studies: [
+        { study: 'UK-TIA 1991', effect: -0.105, se: 0.166 },
+        { study: 'SALT 1991', effect: -0.198, se: 0.149 },
+        { study: 'CAST 1997', effect: -0.059, se: 0.198 },
+        { study: 'ESPS-2 1997', effect: -0.223, se: 0.126 },
+        { study: 'AICLA 1983', effect: -0.431, se: 0.256 },
+        { study: 'Sorensen 1983', effect: -0.350, se: 0.372 }
+      ]
+    }
+  };
+
+  /* ==========================================================
+     STATE
+     ========================================================== */
+  var state = {
+    studies: [],
+    effectType: 'logOR',
+    priors: { muMean: 0, muSD: 10, tauScale: 0.5 },
+    results: null,
+    sensitivity: null
+  };
+
+  /* ==========================================================
+     DOM REFERENCES
+     ========================================================== */
+  var dom = {};
+  function $(id) { return document.getElementById(id); }
+  function initDOM() {
+    dom.dataTableBody = $('dataTableBody');
+    dom.studyCount = $('studyCount');
+    dom.selEffectType = $('selEffectType');
+    dom.csvPaste = $('csvPaste');
+    dom.priorMuMean = $('priorMuMean');
+    dom.priorMuSD = $('priorMuSD');
+    dom.priorMuDesc = $('priorMuDesc');
+    dom.priorTauScale = $('priorTauScale');
+    dom.priorTauMax = $('priorTauMax');
+    dom.resultsPlaceholder = $('resultsPlaceholder');
+    dom.resultsContent = $('resultsContent');
+    dom.reportPlaceholder = $('reportPlaceholder');
+    dom.reportContent = $('reportContent');
+    dom.muStats = $('muStats');
+    dom.tauStats = $('tauStats');
+    dom.dicStats = $('dicStats');
+    dom.shrinkageTableBody = $('shrinkageTableBody');
+    dom.sensitivityTableBody = $('sensitivityTableBody');
+    dom.forestPlotContainer = $('forestPlotContainer');
+    dom.muDensityContainer = $('muDensityContainer');
+    dom.tauDensityContainer = $('tauDensityContainer');
+    dom.methodsText = $('methodsText');
+    dom.rCode = $('rCode');
+  }
+
+  /* ==========================================================
+     TAB NAVIGATION (ARIA-compliant)
+     ========================================================== */
+  function initTabs() {
+    var tabs = document.querySelectorAll('[role="tab"]');
+    var panels = document.querySelectorAll('[role="tabpanel"]');
+
+    function activateTab(tab) {
+      tabs.forEach(function(t) {
+        t.setAttribute('aria-selected', 'false');
+        t.setAttribute('tabindex', '-1');
+      });
+      panels.forEach(function(p) { p.classList.remove('active'); });
+      tab.setAttribute('aria-selected', 'true');
+      tab.setAttribute('tabindex', '0');
+      tab.focus();
+      var panel = $(tab.getAttribute('aria-controls'));
+      if (panel) panel.classList.add('active');
+    }
+
+    tabs.forEach(function(tab) {
+      tab.addEventListener('click', function() { activateTab(tab); });
+      tab.addEventListener('keydown', function(e) {
+        var idx = Array.prototype.indexOf.call(tabs, tab);
+        if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+          e.preventDefault();
+          var next = e.key === 'ArrowRight' ? (idx + 1) % tabs.length : (idx - 1 + tabs.length) % tabs.length;
+          activateTab(tabs[next]);
+        }
+        if (e.key === 'Home') { e.preventDefault(); activateTab(tabs[0]); }
+        if (e.key === 'End') { e.preventDefault(); activateTab(tabs[tabs.length - 1]); }
+      });
+    });
+  }
+
+  function switchToTab(tabId) {
+    var tab = $(tabId);
+    if (tab) tab.click();
+  }
+
+  /* ==========================================================
+     DARK MODE
+     ========================================================== */
+  function initDarkMode() {
+    var saved = localStorage.getItem(STORAGE_KEY + '_dark');
+    if (saved === 'true') document.body.classList.add('dark-mode');
+    $('btnDarkMode').addEventListener('click', function() {
+      document.body.classList.toggle('dark-mode');
+      localStorage.setItem(STORAGE_KEY + '_dark', document.body.classList.contains('dark-mode'));
+      this.textContent = document.body.classList.contains('dark-mode') ? 'Light' : 'Dark';
+    });
+    if (document.body.classList.contains('dark-mode')) {
+      $('btnDarkMode').textContent = 'Light';
+    }
+  }
+
+  /* ==========================================================
+     DATA TABLE MANAGEMENT
+     ========================================================== */
+  function renderDataTable() {
+    var html = '';
+    state.studies.forEach(function(s, idx) {
+      html += '<tr data-row="' + idx + '">'
+        + '<td><input type="text" class="input-study" data-idx="' + idx + '" value="' + escapeHtml(s.study) + '"></td>'
+        + '<td><input type="number" class="input-effect" data-idx="' + idx + '" step="0.001" value="' + s.effect + '"></td>'
+        + '<td><input type="number" class="input-se" data-idx="' + idx + '" step="0.001" min="0.001" value="' + s.se + '"></td>'
+        + '<td><button class="btn btn-danger btn-sm btn-del" data-idx="' + idx + '">Remove</button></td>'
+        + '</tr>';
+    });
+    if (state.studies.length === 0) {
+      html = '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:var(--space-6);">No studies. Add rows manually or load an example.</td></tr>';
+    }
+    dom.dataTableBody.innerHTML = html;
+    dom.studyCount.textContent = state.studies.length;
+
+    // Attach events
+    dom.dataTableBody.querySelectorAll('.input-study').forEach(function(el) {
+      el.addEventListener('change', function() { state.studies[+this.dataset.idx].study = this.value; saveState(); });
+    });
+    dom.dataTableBody.querySelectorAll('.input-effect').forEach(function(el) {
+      el.addEventListener('change', function() { state.studies[+this.dataset.idx].effect = parseFloat(this.value) || 0; saveState(); });
+    });
+    dom.dataTableBody.querySelectorAll('.input-se').forEach(function(el) {
+      el.addEventListener('change', function() {
+        var v = parseFloat(this.value);
+        state.studies[+this.dataset.idx].se = (isFinite(v) && v > 0) ? v : 0.001;
+        saveState();
+      });
+    });
+    dom.dataTableBody.querySelectorAll('.btn-del').forEach(function(el) {
+      el.addEventListener('click', function() { state.studies.splice(+this.dataset.idx, 1); renderDataTable(); saveState(); });
+    });
+  }
+
+  function addEmptyRow() {
+    state.studies.push({ study: 'Study ' + (state.studies.length + 1), effect: 0, se: 1 });
+    renderDataTable();
+    saveState();
+  }
+
+  function loadExample(key) {
+    var ex = EXAMPLES[key];
+    state.studies = JSON.parse(JSON.stringify(ex.studies));
+    dom.selEffectType.value = ex.effectType;
+    state.effectType = ex.effectType;
+    renderDataTable();
+    saveState();
+  }
+
+  function parseCSV() {
+    var text = dom.csvPaste.value.trim();
+    if (!text) return;
+    var lines = text.split(/\r?\n/).filter(function(l) { return l.trim(); });
+    var newStudies = [];
+    lines.forEach(function(line, idx) {
+      var parts = line.split(/[,\t]+/).map(function(s) { return s.trim(); });
+      if (parts.length < 3) return;
+      // Skip header row
+      if (idx === 0 && (parts[1].toLowerCase() === 'effect' || parts[1].toLowerCase() === 'yi' || parts[1].toLowerCase() === 'estimate')) return;
+      var eff = parseFloat(parts[1]);
+      var se = parseFloat(parts[2]);
+      if (!isFinite(eff) || !isFinite(se) || se <= 0) return;
+      newStudies.push({ study: parts[0], effect: eff, se: se });
+    });
+    if (newStudies.length > 0) {
+      state.studies = newStudies;
+      renderDataTable();
+      saveState();
+    }
+  }
+
+  /* ==========================================================
+     PRIOR UI
+     ========================================================== */
+  function updatePriorDesc() {
+    var m0 = parseFloat(dom.priorMuMean.value) || 0;
+    var s0 = parseFloat(dom.priorMuSD.value) || 10;
+    var sc = parseFloat(dom.priorTauScale.value) || 0.5;
+    state.priors = { muMean: m0, muSD: s0, tauScale: sc };
+    var desc = s0 >= 5 ? 'Vague' : (s0 >= 1 ? 'Weakly Informative' : 'Skeptical');
+    dom.priorMuDesc.textContent = desc + ': N(' + m0 + ', ' + s0 + '\u00B2)';
+    dom.priorTauMax.value = (3 * sc).toFixed(2);
+    saveState();
+  }
+
+  /* ==========================================================
+     RUN ANALYSIS
+     ========================================================== */
+  function runAnalysis() {
+    if (state.studies.length < 2) {
+      alert('Need at least 2 studies to run meta-analysis.');
+      return;
+    }
+
+    // Validate data
+    for (var i = 0; i < state.studies.length; i++) {
+      if (!isFinite(state.studies[i].effect)) {
+        alert('Study "' + state.studies[i].study + '" has invalid effect size.');
+        return;
+      }
+      if (!isFinite(state.studies[i].se) || state.studies[i].se <= 0) {
+        alert('Study "' + state.studies[i].study + '" has invalid SE (must be > 0).');
+        return;
+      }
+    }
+
+    var m0 = state.priors.muMean;
+    var s0 = state.priors.muSD;
+    var sc = state.priors.tauScale;
+
+    // Main analysis
+    state.results = runBayesianMA(state.studies, m0, s0, sc);
+
+    // Sensitivity analysis: 3 scenarios
+    state.sensitivity = [
+      { label: 'Vague', muMean: 0, muSD: 10, tauScale: 1.0,
+        result: runBayesianMA(state.studies, 0, 10, 1.0) },
+      { label: 'Weakly Informative', muMean: 0, muSD: 1, tauScale: 0.5,
+        result: runBayesianMA(state.studies, 0, 1, 0.5) },
+      { label: 'Skeptical', muMean: 0, muSD: 0.5, tauScale: 0.25,
+        result: runBayesianMA(state.studies, 0, 0.5, 0.25) }
+    ];
+
+    displayResults();
+    generateReport();
+    switchToTab('tabResults');
+    saveState();
+  }
+
+  /* ==========================================================
+     DISPLAY RESULTS
+     ========================================================== */
+  function fmt(v, d) { return (v != null && isFinite(v)) ? v.toFixed(d) : 'N/A'; }
+
+  function statCardHTML(label, value, sub) {
+    return '<div class="stat-card"><div class="stat-label">' + escapeHtml(label) + '</div>'
+      + '<div class="stat-value">' + escapeHtml(value) + '</div>'
+      + (sub ? '<div class="stat-sub">' + escapeHtml(sub) + '</div>' : '') + '</div>';
+  }
+
+  function displayResults() {
+    var r = state.results;
+    if (!r) return;
+
+    dom.resultsPlaceholder.style.display = 'none';
+    dom.resultsContent.style.display = 'block';
+
+    // Mu stats
+    dom.muStats.innerHTML =
+      statCardHTML('Mean', fmt(r.mu.mean, 4), 'SD: ' + fmt(r.mu.sd, 4))
+      + statCardHTML('Median', fmt(r.mu.median, 4), '')
+      + statCardHTML('95% CrI', fmt(r.mu.criLo, 4) + ' to ' + fmt(r.mu.criHi, 4), '')
+      + statCardHTML('P(mu<0)', fmt(r.mu.pLt0, 4), 'P(mu>0): ' + fmt(r.mu.pGt0, 4));
+
+    // Tau stats
+    dom.tauStats.innerHTML =
+      statCardHTML('Mean', fmt(r.tau.mean, 4), 'SD: ' + fmt(r.tau.sd, 4))
+      + statCardHTML('Median', fmt(r.tau.median, 4), '')
+      + statCardHTML('95% CrI', fmt(r.tau.criLo, 4) + ' to ' + fmt(r.tau.criHi, 4), '')
+      + statCardHTML('tau\u00B2 (mean)', fmt(r.tau.mean * r.tau.mean, 4), '');
+
+    // DIC
+    dom.dicStats.innerHTML =
+      statCardHTML('D-bar', fmt(r.dic.dbar, 2), 'Deviance at posterior mean')
+      + statCardHTML('pD', fmt(r.dic.pD, 2), 'Effective parameters')
+      + statCardHTML('DIC', fmt(r.dic.dic, 2), 'Lower = better fit');
+
+    // Shrinkage table
+    var sh = '';
+    r.shrinkage.forEach(function(s) {
+      sh += '<tr>'
+        + '<td>' + escapeHtml(s.study) + '</td>'
+        + '<td>' + fmt(s.original, 4) + '</td>'
+        + '<td>' + fmt(s.posteriorMean, 4) + '</td>'
+        + '<td>' + fmt(s.shrinkageFactor, 3) + '</td>'
+        + '<td>' + fmt(s.criLo, 4) + ' to ' + fmt(s.criHi, 4) + '</td>'
+        + '</tr>';
+    });
+    dom.shrinkageTableBody.innerHTML = sh;
+
+    // Sensitivity table
+    var sen = '';
+    state.sensitivity.forEach(function(s) {
+      sen += '<tr>'
+        + '<td>' + escapeHtml(s.label) + '</td>'
+        + '<td>' + fmt(s.result.mu.mean, 4) + '</td>'
+        + '<td>' + fmt(s.result.mu.criLo, 4) + ' to ' + fmt(s.result.mu.criHi, 4) + '</td>'
+        + '<td>' + fmt(s.result.tau.mean, 4) + '</td>'
+        + '<td>' + fmt(s.result.tau.criLo, 4) + ' to ' + fmt(s.result.tau.criHi, 4) + '</td>'
+        + '<td>' + fmt(s.result.mu.pLt0, 4) + '</td>'
+        + '</tr>';
+    });
+    dom.sensitivityTableBody.innerHTML = sen;
+
+    // Draw plots
+    drawForestPlot();
+    drawMuDensity();
+    drawTauDensity();
+  }
+
+  /* ==========================================================
+     SVG PLOTS
+     ========================================================== */
+  function svgEl(tag, attrs) {
+    var el = document.createElementNS('http://www.w3.org/2000/svg', tag);
+    for (var k in attrs) el.setAttribute(k, attrs[k]);
+    return el;
+  }
+
+  function getPlotColors() {
+    var isDark = document.body.classList.contains('dark-mode');
+    return {
+      text: isDark ? '#f1f5f9' : '#0f172a',
+      textMuted: isDark ? '#94a3b8' : '#64748b',
+      grid: isDark ? '#334155' : '#e2e8f0',
+      bg: isDark ? '#1e293b' : '#ffffff',
+      primary: isDark ? '#60a5fa' : '#2563eb',
+      accent: isDark ? '#a78bfa' : '#7c3aed',
+      success: isDark ? '#34d399' : '#10b981',
+      danger: isDark ? '#f87171' : '#ef4444',
+      prior: isDark ? '#94a3b8' : '#94a3b8'
+    };
+  }
+
+  /* ---------- Forest Plot ---------- */
+  function drawForestPlot() {
+    var r = state.results;
+    if (!r) return;
+    var c = getPlotColors();
+    var k = r.shrinkage.length;
+    var rowH = 36;
+    var topMargin = 40, bottomMargin = 60, leftMargin = 160, rightMargin = 40;
+    var plotW = 500;
+    var svgW = leftMargin + plotW + rightMargin;
+    var svgH = topMargin + (k + 2) * rowH + bottomMargin;
+
+    var svg = svgEl('svg', { width: svgW, height: svgH, viewBox: '0 0 ' + svgW + ' ' + svgH });
+
+    // Background
+    svg.appendChild(svgEl('rect', { x: 0, y: 0, width: svgW, height: svgH, fill: c.bg, rx: 8 }));
+
+    // Find x-axis range
+    var allVals = [];
+    r.shrinkage.forEach(function(s) {
+      allVals.push(s.original, s.original - 1.96 * state.studies.filter(function(st) { return st.study === s.study; })[0].se);
+      allVals.push(s.original + 1.96 * state.studies.filter(function(st) { return st.study === s.study; })[0].se);
+      allVals.push(s.posteriorMean, s.criLo, s.criHi);
+    });
+    allVals.push(r.mu.mean, r.mu.criLo, r.mu.criHi);
+    var xMin = Math.min.apply(null, allVals) - 0.2;
+    var xMax = Math.max.apply(null, allVals) + 0.2;
+
+    function xScale(v) { return leftMargin + (v - xMin) / (xMax - xMin) * plotW; }
+    function yPos(i) { return topMargin + (i + 0.5) * rowH; }
+
+    // Reference line at 0
+    var x0 = xScale(0);
+    svg.appendChild(svgEl('line', { x1: x0, y1: topMargin, x2: x0, y2: topMargin + (k + 1.5) * rowH, stroke: c.textMuted, 'stroke-width': 1, 'stroke-dasharray': '4,3' }));
+
+    // Grid lines + axis
+    var nTicks = 5;
+    var tickStep = (xMax - xMin) / nTicks;
+    for (var t = 0; t <= nTicks; t++) {
+      var val = xMin + t * tickStep;
+      var tx = xScale(val);
+      svg.appendChild(svgEl('line', { x1: tx, y1: topMargin + (k + 1.5) * rowH, x2: tx, y2: topMargin + (k + 1.5) * rowH + 5, stroke: c.textMuted, 'stroke-width': 1 }));
+      var label = svgEl('text', { x: tx, y: topMargin + (k + 1.5) * rowH + 18, fill: c.textMuted, 'text-anchor': 'middle', 'font-size': '11' });
+      label.textContent = val.toFixed(2);
+      svg.appendChild(label);
+    }
+    // Axis line
+    svg.appendChild(svgEl('line', { x1: leftMargin, y1: topMargin + (k + 1.5) * rowH, x2: leftMargin + plotW, y2: topMargin + (k + 1.5) * rowH, stroke: c.textMuted, 'stroke-width': 1 }));
+
+    // Title
+    var titleEl = svgEl('text', { x: svgW / 2, y: 22, fill: c.text, 'text-anchor': 'middle', 'font-size': '14', 'font-weight': '600' });
+    titleEl.textContent = 'Bayesian Forest Plot (shrinkage toward grand mean)';
+    svg.appendChild(titleEl);
+
+    // Studies
+    for (var i = 0; i < k; i++) {
+      var s = r.shrinkage[i];
+      var y = yPos(i);
+      var origStudy = state.studies[i];
+
+      // Study label
+      var lbl = svgEl('text', { x: leftMargin - 10, y: y + 4, fill: c.text, 'text-anchor': 'end', 'font-size': '12' });
+      lbl.textContent = s.study;
+      svg.appendChild(lbl);
+
+      // Original CI line
+      var origLo = s.original - 1.96 * origStudy.se;
+      var origHi = s.original + 1.96 * origStudy.se;
+      svg.appendChild(svgEl('line', { x1: xScale(origLo), y1: y - 4, x2: xScale(origHi), y2: y - 4, stroke: c.textMuted, 'stroke-width': 1.5 }));
+
+      // Original point (hollow circle)
+      svg.appendChild(svgEl('circle', { cx: xScale(s.original), cy: y - 4, r: 5, fill: 'none', stroke: c.textMuted, 'stroke-width': 1.5 }));
+
+      // Posterior CI line
+      svg.appendChild(svgEl('line', { x1: xScale(s.criLo), y1: y + 6, x2: xScale(s.criHi), y2: y + 6, stroke: c.primary, 'stroke-width': 1.5 }));
+
+      // Posterior point (filled circle)
+      svg.appendChild(svgEl('circle', { cx: xScale(s.posteriorMean), cy: y + 6, r: 5, fill: c.primary, stroke: c.primary, 'stroke-width': 1.5 }));
+
+      // Arrow from original to posterior
+      svg.appendChild(svgEl('line', { x1: xScale(s.original), y1: y - 4, x2: xScale(s.posteriorMean), y2: y + 6, stroke: c.accent, 'stroke-width': 0.8, 'stroke-dasharray': '2,2', opacity: '0.6' }));
+    }
+
+    // Grand mean diamond
+    var gdY = yPos(k + 0.3);
+    var gdLbl = svgEl('text', { x: leftMargin - 10, y: gdY + 4, fill: c.primary, 'text-anchor': 'end', 'font-size': '12', 'font-weight': '700' });
+    gdLbl.textContent = 'Overall';
+    svg.appendChild(gdLbl);
+
+    var dSize = 8;
+    var gdX = xScale(r.mu.mean);
+    var dPath = 'M' + gdX + ',' + (gdY - dSize) + ' L' + (gdX + dSize * 1.5) + ',' + gdY + ' L' + gdX + ',' + (gdY + dSize) + ' L' + (gdX - dSize * 1.5) + ',' + gdY + ' Z';
+    svg.appendChild(svgEl('path', { d: dPath, fill: c.primary, stroke: c.primary, 'stroke-width': 1 }));
+
+    // Grand mean CrI
+    svg.appendChild(svgEl('line', { x1: xScale(r.mu.criLo), y1: gdY, x2: xScale(r.mu.criHi), y2: gdY, stroke: c.primary, 'stroke-width': 2 }));
+
+    // Legend
+    var legY = topMargin + (k + 2) * rowH + 10;
+    svg.appendChild(svgEl('circle', { cx: leftMargin + 10, cy: legY, r: 4, fill: 'none', stroke: c.textMuted, 'stroke-width': 1.5 }));
+    var leg1 = svgEl('text', { x: leftMargin + 20, y: legY + 4, fill: c.textMuted, 'font-size': '11' });
+    leg1.textContent = 'Original';
+    svg.appendChild(leg1);
+    svg.appendChild(svgEl('circle', { cx: leftMargin + 100, cy: legY, r: 4, fill: c.primary, stroke: c.primary, 'stroke-width': 1.5 }));
+    var leg2 = svgEl('text', { x: leftMargin + 110, y: legY + 4, fill: c.textMuted, 'font-size': '11' });
+    leg2.textContent = 'Posterior (shrunken)';
+    svg.appendChild(leg2);
+
+    dom.forestPlotContainer.innerHTML = '';
+    dom.forestPlotContainer.appendChild(svg);
+  }
+
+  /* ---------- Density Plot Helper ---------- */
+  function drawDensityPlot(container, data, priorData, xLabel, title) {
+    var c = getPlotColors();
+    var W = 420, H = 250;
+    var margin = { top: 30, right: 20, bottom: 45, left: 55 };
+    var pW = W - margin.left - margin.right;
+    var pH = H - margin.top - margin.bottom;
+
+    var svg = svgEl('svg', { width: W, height: H, viewBox: '0 0 ' + W + ' ' + H });
+    svg.appendChild(svgEl('rect', { x: 0, y: 0, width: W, height: H, fill: c.bg, rx: 8 }));
+
+    // Find ranges
+    var xMin = data[0].x, xMax = data[data.length - 1].x;
+    var yMax = 0;
+    data.forEach(function(d) { if (d.y > yMax) yMax = d.y; });
+    // Include prior density range if visible
+    if (priorData) {
+      priorData.forEach(function(d) {
+        if (d.x >= xMin && d.x <= xMax && d.y > yMax) yMax = d.y;
+      });
+    }
+    yMax *= 1.15;
+    if (yMax < 0.01) yMax = 1;
+
+    function xS(v) { return margin.left + (v - xMin) / (xMax - xMin) * pW; }
+    function yS(v) { return margin.top + pH - (v / yMax) * pH; }
+
+    // Grid lines
+    for (var i = 0; i <= 4; i++) {
+      var yVal = (i / 4) * yMax;
+      var yy = yS(yVal);
+      svg.appendChild(svgEl('line', { x1: margin.left, y1: yy, x2: margin.left + pW, y2: yy, stroke: c.grid, 'stroke-width': 0.5 }));
+      var lab = svgEl('text', { x: margin.left - 5, y: yy + 4, fill: c.textMuted, 'text-anchor': 'end', 'font-size': '10' });
+      lab.textContent = yVal.toFixed(2);
+      svg.appendChild(lab);
+    }
+
+    // X axis ticks
+    var nT = 5;
+    for (var i = 0; i <= nT; i++) {
+      var xVal = xMin + (i / nT) * (xMax - xMin);
+      var xx = xS(xVal);
+      svg.appendChild(svgEl('line', { x1: xx, y1: margin.top + pH, x2: xx, y2: margin.top + pH + 5, stroke: c.textMuted, 'stroke-width': 1 }));
+      var lab = svgEl('text', { x: xx, y: margin.top + pH + 18, fill: c.textMuted, 'text-anchor': 'middle', 'font-size': '10' });
+      lab.textContent = xVal.toFixed(2);
+      svg.appendChild(lab);
+    }
+
+    // X axis label
+    var xLbl = svgEl('text', { x: margin.left + pW / 2, y: H - 5, fill: c.text, 'text-anchor': 'middle', 'font-size': '12' });
+    xLbl.textContent = xLabel;
+    svg.appendChild(xLbl);
+
+    // Title
+    var tEl = svgEl('text', { x: W / 2, y: 18, fill: c.text, 'text-anchor': 'middle', 'font-size': '13', 'font-weight': '600' });
+    tEl.textContent = title;
+    svg.appendChild(tEl);
+
+    // Prior density path (dashed)
+    if (priorData) {
+      var prPath = '';
+      priorData.forEach(function(d, i) {
+        if (d.x < xMin || d.x > xMax) return;
+        var cmd = prPath ? 'L' : 'M';
+        prPath += cmd + xS(d.x).toFixed(1) + ',' + yS(d.y).toFixed(1) + ' ';
+      });
+      if (prPath) {
+        svg.appendChild(svgEl('path', { d: prPath, fill: 'none', stroke: c.prior, 'stroke-width': 1.5, 'stroke-dasharray': '5,3' }));
+      }
+    }
+
+    // Posterior density path (filled)
+    var pathD = 'M' + xS(data[0].x).toFixed(1) + ',' + yS(0).toFixed(1) + ' ';
+    data.forEach(function(d) {
+      pathD += 'L' + xS(d.x).toFixed(1) + ',' + yS(d.y).toFixed(1) + ' ';
+    });
+    pathD += 'L' + xS(data[data.length - 1].x).toFixed(1) + ',' + yS(0).toFixed(1) + ' Z';
+    svg.appendChild(svgEl('path', { d: pathD, fill: c.primary, 'fill-opacity': '0.15', stroke: c.primary, 'stroke-width': 2 }));
+
+    // Legend
+    var legY = margin.top + 12;
+    svg.appendChild(svgEl('line', { x1: margin.left + pW - 110, y1: legY, x2: margin.left + pW - 90, y2: legY, stroke: c.primary, 'stroke-width': 2 }));
+    var leg1 = svgEl('text', { x: margin.left + pW - 85, y: legY + 4, fill: c.text, 'font-size': '10' });
+    leg1.textContent = 'Posterior';
+    svg.appendChild(leg1);
+    if (priorData) {
+      svg.appendChild(svgEl('line', { x1: margin.left + pW - 110, y1: legY + 16, x2: margin.left + pW - 90, y2: legY + 16, stroke: c.prior, 'stroke-width': 1.5, 'stroke-dasharray': '5,3' }));
+      var leg2 = svgEl('text', { x: margin.left + pW - 85, y: legY + 20, fill: c.textMuted, 'font-size': '10' });
+      leg2.textContent = 'Prior';
+      svg.appendChild(leg2);
+    }
+
+    // Axes
+    svg.appendChild(svgEl('line', { x1: margin.left, y1: margin.top, x2: margin.left, y2: margin.top + pH, stroke: c.textMuted, 'stroke-width': 1 }));
+    svg.appendChild(svgEl('line', { x1: margin.left, y1: margin.top + pH, x2: margin.left + pW, y2: margin.top + pH, stroke: c.textMuted, 'stroke-width': 1 }));
+
+    container.innerHTML = '';
+    container.appendChild(svg);
+  }
+
+  function drawMuDensity() {
+    var r = state.results;
+    if (!r) return;
+    drawDensityPlot(dom.muDensityContainer, r.muDensity, r.muPriorDensity, 'mu (grand mean)', 'Posterior of mu');
+  }
+
+  function drawTauDensity() {
+    var r = state.results;
+    if (!r) return;
+    drawDensityPlot(dom.tauDensityContainer, r.tauDensity, r.tauPriorDensity, 'tau (heterogeneity SD)', 'Posterior of tau');
+  }
+
+  /* ==========================================================
+     REPORT GENERATION
+     ========================================================== */
+  function generateReport() {
+    var r = state.results;
+    if (!r) return;
+    dom.reportPlaceholder.style.display = 'none';
+    dom.reportContent.style.display = 'block';
+
+    var et = escapeHtml(dom.selEffectType.value);
+    var k = state.studies.length;
+
+    // Methods text
+    var methods = '<p>A Bayesian random-effects meta-analysis was conducted using a normal-normal hierarchical model '
+      + '(Normand, 1999; Higgins et al., 2009). The model assumes that study-level effect estimates '
+      + '<em>y<sub>i</sub></em> are normally distributed around study-specific true effects '
+      + '<em>&theta;<sub>i</sub></em> with known sampling variances <em>v<sub>i</sub></em>, '
+      + 'and that the <em>&theta;<sub>i</sub></em> are drawn from a normal distribution with '
+      + 'grand mean <em>&mu;</em> and between-study standard deviation <em>&tau;</em>.</p>'
+      + '<p>The prior for the grand mean was <em>&mu;</em> ~ N(' + fmt(r.priors.muMean, 1) + ', '
+      + fmt(r.priors.muSD, 1) + '&sup2;), and the prior for heterogeneity was '
+      + '<em>&tau;</em> ~ Half-Cauchy(' + fmt(r.priors.tauScale, 2) + ') '
+      + '(Polson &amp; Scott, 2012). Posterior distributions were obtained via grid approximation '
+      + 'over <em>&tau;</em> using ' + GRID_POINTS + ' grid points, with analytical integration '
+      + 'over <em>&mu;</em> conditional on each grid value of <em>&tau;</em>.</p>'
+      + '<p>A total of ' + k + ' studies were included in the analysis using the '
+      + et + ' effect measure. '
+      + 'The posterior mean of <em>&mu;</em> was ' + fmt(r.mu.mean, 4)
+      + ' (95% CrI: ' + fmt(r.mu.criLo, 4) + ' to ' + fmt(r.mu.criHi, 4) + '), '
+      + 'with posterior probability P(<em>&mu;</em> &lt; 0) = ' + fmt(r.mu.pLt0, 3) + '. '
+      + 'The posterior mean of <em>&tau;</em> was ' + fmt(r.tau.mean, 4)
+      + ' (95% CrI: ' + fmt(r.tau.criLo, 4) + ' to ' + fmt(r.tau.criHi, 4) + ').</p>'
+      + '<p><strong>References:</strong><br>'
+      + 'Normand SL (1999). Meta-analysis: formulating, evaluating, combining, and reporting. <em>Statistics in Medicine</em>, 18(3), 321-359.<br>'
+      + 'Higgins JPT, Thompson SG, Spiegelhalter DJ (2009). A re-evaluation of random-effects meta-analysis. '
+      + '<em>Journal of the Royal Statistical Society: Series A</em>, 172(1), 137-159.<br>'
+      + 'Polson NG, Scott JG (2012). On the half-Cauchy prior for a global scale parameter. '
+      + '<em>Bayesian Analysis</em>, 7(4), 887-902.</p>';
+
+    dom.methodsText.innerHTML = methods;
+
+    // R code
+    var rStudyNames = state.studies.map(function(s) { return '"' + s.study.replace(/"/g, '\\"') + '"'; }).join(', ');
+    var rEffects = state.studies.map(function(s) { return s.effect; }).join(', ');
+    var rSEs = state.studies.map(function(s) { return s.se; }).join(', ');
+
+    var rcode = '# Bayesian Random-Effects Meta-Analysis\n'
+      + '# Using bayesmeta package (Rover, 2020)\n\n'
+      + 'library(bayesmeta)\n\n'
+      + '# Study data\n'
+      + 'yi <- c(' + rEffects + ')\n'
+      + 'sei <- c(' + rSEs + ')\n'
+      + 'studies <- c(' + rStudyNames + ')\n\n'
+      + '# Priors\n'
+      + '# mu ~ N(' + r.priors.muMean + ', ' + r.priors.muSD + '^2)\n'
+      + '# tau ~ Half-Cauchy(' + r.priors.tauScale + ')\n\n'
+      + '# Run analysis\n'
+      + 'bma <- bayesmeta(\n'
+      + '  y = yi,\n'
+      + '  sigma = sei,\n'
+      + '  labels = studies,\n'
+      + '  mu.prior.mean = ' + r.priors.muMean + ',\n'
+      + '  mu.prior.sd = ' + r.priors.muSD + ',\n'
+      + '  tau.prior = function(t) dhalfcauchy(t, scale = ' + r.priors.tauScale + ')\n'
+      + ')\n\n'
+      + '# Results\n'
+      + 'summary(bma)\n'
+      + 'forestplot(bma)\n'
+      + 'plot(bma)\n';
+
+    dom.rCode.textContent = rcode;
+  }
+
+  /* ==========================================================
+     EXPORT
+     ========================================================== */
+  function exportCSV() {
+    var r = state.results;
+    if (!r) return;
+    var lines = ['Study,Original_Effect,SE,Posterior_Mean,Posterior_SD,Shrinkage_Factor,CrI_Lo,CrI_Hi'];
+    r.shrinkage.forEach(function(s, i) {
+      lines.push([
+        sanitizeCSVCell(s.study),
+        s.original, state.studies[i].se,
+        s.posteriorMean.toFixed(6), s.posteriorSD.toFixed(6),
+        s.shrinkageFactor.toFixed(4),
+        s.criLo.toFixed(6), s.criHi.toFixed(6)
+      ].join(','));
+    });
+    lines.push('');
+    lines.push('Grand_Mean,' + r.mu.mean.toFixed(6));
+    lines.push('Grand_Mean_95CrI_Lo,' + r.mu.criLo.toFixed(6));
+    lines.push('Grand_Mean_95CrI_Hi,' + r.mu.criHi.toFixed(6));
+    lines.push('Tau_Mean,' + r.tau.mean.toFixed(6));
+    lines.push('P_mu_lt_0,' + r.mu.pLt0.toFixed(6));
+    downloadBlob(lines.join('\n'), 'bayesian-ma-results.csv', 'text/csv');
+  }
+
+  function exportJSON() {
+    var r = state.results;
+    if (!r) return;
+    var obj = {
+      effectType: state.effectType,
+      priors: r.priors,
+      mu: r.mu,
+      tau: r.tau,
+      dic: r.dic,
+      shrinkage: r.shrinkage,
+      sensitivity: state.sensitivity ? state.sensitivity.map(function(s) {
+        return { label: s.label, mu: s.result.mu, tau: s.result.tau };
+      }) : null
+    };
+    downloadBlob(JSON.stringify(obj, null, 2), 'bayesian-ma-results.json', 'application/json');
+  }
+
+  function downloadBlob(content, filename, type) {
+    var blob = new Blob([content], { type: type });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  /* ==========================================================
+     localStorage PERSISTENCE
+     ========================================================== */
+  function saveState() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        studies: state.studies,
+        effectType: state.effectType,
+        priors: state.priors
+      }));
+    } catch (e) { /* quota exceeded — ignore */ }
+  }
+
+  function loadState() {
+    try {
+      var saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        var obj = JSON.parse(saved);
+        if (obj.studies && obj.studies.length > 0) state.studies = obj.studies;
+        if (obj.effectType) { state.effectType = obj.effectType; dom.selEffectType.value = obj.effectType; }
+        if (obj.priors) {
+          state.priors = obj.priors;
+          dom.priorMuMean.value = obj.priors.muMean;
+          dom.priorMuSD.value = obj.priors.muSD;
+          dom.priorTauScale.value = obj.priors.tauScale;
+          dom.priorTauMax.value = (3 * obj.priors.tauScale).toFixed(2);
+        }
+      }
+    } catch (e) { /* parse error — ignore */ }
+  }
+
+  function resetAll() {
+    if (!confirm('Reset all data and settings?')) return;
+    localStorage.removeItem(STORAGE_KEY);
+    state.studies = [];
+    state.results = null;
+    state.sensitivity = null;
+    state.priors = { muMean: 0, muSD: 10, tauScale: 0.5 };
+    dom.selEffectType.value = 'logOR';
+    dom.priorMuMean.value = 0;
+    dom.priorMuSD.value = 10;
+    dom.priorTauScale.value = 0.5;
+    dom.priorTauMax.value = '1.50';
+    dom.csvPaste.value = '';
+    dom.resultsPlaceholder.style.display = '';
+    dom.resultsContent.style.display = 'none';
+    dom.reportPlaceholder.style.display = '';
+    dom.reportContent.style.display = 'none';
+    renderDataTable();
+    updatePriorDesc();
+  }
+
+  /* ==========================================================
+     INIT
+     ========================================================== */
+  function init() {
+    initDOM();
+    initTabs();
+    initDarkMode();
+    loadState();
+    renderDataTable();
+    updatePriorDesc();
+
+    // Event listeners
+    $('btnAddRow').addEventListener('click', addEmptyRow);
+    $('btnClearRows').addEventListener('click', function() {
+      state.studies = [];
+      renderDataTable();
+      saveState();
+    });
+    $('btnExMg').addEventListener('click', function() { loadExample('magnesium'); });
+    $('btnExAspirin').addEventListener('click', function() { loadExample('aspirin'); });
+    $('btnParseCsv').addEventListener('click', parseCSV);
+    $('btnRunAnalysis').addEventListener('click', runAnalysis);
+    $('btnReset').addEventListener('click', resetAll);
+    $('btnExportCSV').addEventListener('click', exportCSV);
+    $('btnExportJSON').addEventListener('click', exportJSON);
+    $('btnPrint').addEventListener('click', function() { window.print(); });
+
+    dom.selEffectType.addEventListener('change', function() {
+      state.effectType = this.value;
+      saveState();
+    });
+
+    dom.priorMuMean.addEventListener('change', updatePriorDesc);
+    dom.priorMuSD.addEventListener('change', updatePriorDesc);
+    dom.priorTauScale.addEventListener('change', updatePriorDesc);
+  }
+
+  // Start
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+
+})();
+</script>
+</body>
+</html>
