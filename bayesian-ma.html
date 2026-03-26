@@ -505,6 +505,9 @@ pre.code-block {
         <button class="btn btn-primary btn-sm" id="btnExportCSV">Export CSV</button>
         <button class="btn btn-primary btn-sm" id="btnExportJSON">Export JSON</button>
         <button class="btn btn-secondary btn-sm" id="btnPrint">Print Report</button>
+        <button class="btn btn-primary btn-sm" id="btnExportMAIF" style="background:#2563eb;">Export MAIF</button>
+        <button class="btn btn-primary btn-sm" id="btnImportMAIF" style="background:#16a34a;">Import MAIF</button>
+        <input type="file" id="maifFileInput" accept=".json" style="display:none;">
       </div>
     </div>
   </div>
@@ -1549,6 +1552,71 @@ pre.code-block {
   }
 
   /* ==========================================================
+     MAIF (Meta-Analysis Interchange Format) IMPORT / EXPORT
+     ========================================================== */
+  function exportMAIF() {
+    var studies = state.studies.map(function(s) {
+      return { id: s.study, yi: s.effect, sei: s.se };
+    });
+    var maif = {
+      version: '1.0',
+      metadata: {
+        effectType: state.effectType,
+        createdBy: 'BayesianMA',
+        createdAt: new Date().toISOString()
+      },
+      studies: studies
+    };
+    if (state.results) {
+      var r = state.results;
+      maif.results = {
+        bayesian: {
+          muMean: r.mu.mean,
+          muMedian: r.mu.median,
+          muCrILo: r.mu.criLo,
+          muCrIHi: r.mu.criHi,
+          pMuLt0: r.mu.pLt0,
+          tauMean: r.tau.mean,
+          tauMedian: r.tau.median,
+          dic: r.dic,
+          priors: r.priors
+        }
+      };
+    }
+    downloadBlob(JSON.stringify(maif, null, 2), 'bayesian-ma-maif.json', 'application/json');
+  }
+
+  function importMAIFFile(file) {
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      try {
+        var maif = JSON.parse(e.target.result);
+        if (!maif.version || !maif.studies || !Array.isArray(maif.studies)) {
+          alert('Invalid MAIF file: missing version or studies array.');
+          return;
+        }
+        state.studies = maif.studies.map(function(s) {
+          return {
+            study: s.id || ('Study ' + (state.studies.length + 1)),
+            effect: (s.yi != null && isFinite(Number(s.yi))) ? Number(s.yi) : 0,
+            se: (s.sei != null && isFinite(Number(s.sei)) && Number(s.sei) > 0) ? Number(s.sei) : 1
+          };
+        });
+        if (maif.metadata && maif.metadata.effectType) {
+          state.effectType = maif.metadata.effectType;
+          dom.selEffectType.value = state.effectType;
+        }
+        renderDataTable();
+        saveState();
+        alert('Imported ' + maif.studies.length + ' studies from MAIF.');
+      } catch (err) {
+        alert('Failed to parse MAIF file: ' + err.message);
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  /* ==========================================================
      localStorage PERSISTENCE
      ========================================================== */
   function saveState() {
@@ -1626,6 +1694,11 @@ pre.code-block {
     $('btnExportCSV').addEventListener('click', exportCSV);
     $('btnExportJSON').addEventListener('click', exportJSON);
     $('btnPrint').addEventListener('click', function() { window.print(); });
+    $('btnExportMAIF').addEventListener('click', exportMAIF);
+    $('btnImportMAIF').addEventListener('click', function() { $('maifFileInput').click(); });
+    $('maifFileInput').addEventListener('change', function() {
+      if (this.files && this.files[0]) { importMAIFFile(this.files[0]); this.value = ''; }
+    });
 
     dom.selEffectType.addEventListener('change', function() {
       state.effectType = this.value;
