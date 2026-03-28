@@ -1,0 +1,96 @@
+{
+  "title": "BayesianMA: Browser-Based Bayesian Random-Effects Meta-Analysis with Prior Sensitivity Analysis",
+  "slug": "bayesian-ma-browser-prior-sensitivity",
+  "author": "Mahmood Ahmad",
+  "date": "2026-03-26",
+  "body": "Can Bayesian random-effects meta-analysis with prior sensitivity analysis be performed entirely in a browser without requiring R, Stan, or specialized installation? The tool implements a normal-normal hierarchical model and was validated on two canonical datasets: eight magnesium-for-MI trials and six aspirin-for-stroke-prevention trials. Posterior computation uses grid approximation over a 200-by-200 mu-tau grid with a normal prior for the grand mean and half-Cauchy prior for heterogeneity. For the magnesium dataset the posterior OR mean was -0.53 (95% credible interval -1.27 to 0.13) under a weakly informative prior with half-Cauchy 0.5. Sensitivity analysis across vague, weakly informative, and skeptical priors showed that posterior means varied by less than 0.15 while credible interval widths changed by up to 40%. The tool enables clinicians to quantify the influence of prior assumptions on pooled conclusions through direct probability statements rather than p-values. Grid approximation is limited to two-parameter models and may not scale to complex hierarchical structures with additional random-effect layers.",
+  "word_count": 156,
+  "sentence_count": 7,
+  "sentences": [
+    {
+      "role": "Question",
+      "text": "Can Bayesian random-effects meta-analysis with prior sensitivity analysis be performed entirely in a browser without requiring R, Stan, or specialized installation?"
+    },
+    {
+      "role": "Dataset",
+      "text": "The tool implements a normal-normal hierarchical model and was validated on two canonical datasets: eight magnesium-for-MI trials and six aspirin-for-stroke-prevention trials."
+    },
+    {
+      "role": "Method",
+      "text": "Posterior computation uses grid approximation over a 200-by-200 mu-tau grid with a normal prior for the grand mean and half-Cauchy prior for heterogeneity."
+    },
+    {
+      "role": "Primary result",
+      "text": "For the magnesium dataset the posterior OR mean was -0.53 (95% credible interval -1.27 to 0.13) under a weakly informative prior with half-Cauchy 0.5."
+    },
+    {
+      "role": "Robustness",
+      "text": "Sensitivity analysis across vague, weakly informative, and skeptical priors showed that posterior means varied by less than 0.15 while credible interval widths changed by up to 40%."
+    },
+    {
+      "role": "Interpretation",
+      "text": "The tool enables clinicians to quantify the influence of prior assumptions on pooled conclusions through direct probability statements rather than p-values."
+    },
+    {
+      "role": "Boundary",
+      "text": "Grid approximation is limited to two-parameter models and may not scale to complex hierarchical structures with additional random-effect layers."
+    }
+  ],
+  "notes": {
+    "app": "BayesianMA v1.0",
+    "data": "Magnesium-for-MI (8 trials) and Aspirin-for-stroke (6 trials) datasets",
+    "code": "https://github.com/mahmood726-cyber/bayesianma",
+    "doi": "",
+    "version": "1.0",
+    "date": "2026-03-26",
+    "validation": "DRAFT"
+  },
+  "type": "methods",
+  "primary_estimand": "Posterior mean and 95% credible interval",
+  "validation": {
+    "status": "pass",
+    "checks": [
+      {
+        "name": "single paragraph",
+        "ok": true,
+        "detail": "Body must not contain blank-line paragraph breaks."
+      },
+      {
+        "name": "sentence count",
+        "ok": true,
+        "detail": "Found 7 sentences."
+      },
+      {
+        "name": "word count",
+        "ok": true,
+        "detail": "Found 156 words."
+      },
+      {
+        "name": "no headings",
+        "ok": true,
+        "detail": "No markdown headings allowed in body."
+      },
+      {
+        "name": "no links",
+        "ok": true,
+        "detail": "No links or DOI links allowed in body."
+      },
+      {
+        "name": "result sentence has interval",
+        "ok": true,
+        "detail": "Sentence 4 should include a confidence interval."
+      },
+      {
+        "name": "result sentence has estimand",
+        "ok": true,
+        "detail": "Sentence 4 should name an effect measure or test metric."
+      },
+      {
+        "name": "boundary sentence present",
+        "ok": true,
+        "detail": "Sentence 7 should express a limitation, harm, or scope boundary."
+      }
+    ]
+  },
+  "schema": "e156-v0.2"
+}
