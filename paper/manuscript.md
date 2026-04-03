@@ -1,33 +1,28 @@
-# BayesianMA: Browser-Based Bayesian Random-Effects Meta-Analysis with Prior Sensitivity Analysis
+Mahmood Ahmad
+Tahir Heart Institute
+author@example.com
 
-**Mahmood Ahmad**^1 | Royal Free Hospital, London | mahmood.ahmad2@nhs.net | ORCID: 0009-0003-7781-4478
+BayesianMA: Browser-Based Bayesian Meta-Analysis with Prior Sensitivity Analysis
 
-## Abstract
-**Background:** Bayesian meta-analysis provides direct probability statements and quantifies the influence of prior assumptions, but requires R/Stan. **Methods:** BayesianMA (1,767 lines, single HTML) implements a normal-normal hierarchical model with grid approximation (200×200 mu-tau grid), three prior families (vague, weakly informative, skeptical), half-Cauchy heterogeneity prior, and automated sensitivity analysis. Two built-in datasets: magnesium-in-MI (k=8) and aspirin-for-stroke (k=6). Validated by 25 Selenium tests. **Results:** Magnesium posterior OR mean = -0.53 (95% CrI -1.27 to 0.13) under weakly informative prior. Sensitivity analysis: posterior means varied <0.15 across priors; CrI widths varied up to 40%. Aspirin showed robust benefit (posterior probability of RR<1: 97.2%) regardless of prior. **Conclusion:** First browser-based Bayesian meta-analysis with built-in prior sensitivity. Available at https://github.com/mahmood726-cyber/bayesian-ma (MIT).
+Bayesian meta-analysis provides direct probability statements and quantifies prior influence, but typically requires R or Stan, limiting accessibility for clinicians. BayesianMA is a browser tool implementing a normal-normal hierarchical model with grid approximation over a 200-by-200 mu-tau space, supporting vague, weakly informative, and skeptical priors each with half-Cauchy heterogeneity prior. Automated sensitivity analysis runs all three priors simultaneously, producing overlay posterior plots and tabulating how conclusions shift across assumptions. On the magnesium-for-MI dataset of eight trials, posterior mean log-OR was negative 0.53 under the weakly informative prior (95% credible interval negative 1.27 to 0.13), with means varying less than 0.15 across priors while credible interval widths changed up to 40%. The aspirin dataset showed prior-insensitive benefit with 97.2% posterior probability of risk reduction regardless of prior choice. This tool enables clinicians to perform Bayesian meta-analysis with built-in sensitivity analysis without installation. Grid approximation is limited to two-parameter models and does not scale to complex hierarchical structures.
 
-## 1. Introduction
-Frequentist meta-analysis reports confidence intervals that are often misinterpreted as probability statements. Bayesian meta-analysis directly answers "what is the probability the treatment works?" and explicitly incorporates prior beliefs.^1 Prior sensitivity analysis — showing how conclusions change across plausible priors — is essential but rarely performed because it requires programming.^2
+Outside Notes
 
-## 2. Methods
-### Model
-Normal-normal hierarchical: y_i ~ N(theta_i, s_i²), theta_i ~ N(mu, tau²). Prior: mu ~ N(mu_0, sigma_0²), tau ~ half-Cauchy(scale).
-### Computation
-Grid approximation over 200×200 (mu, tau) grid. Posterior computed as likelihood × prior, normalised to sum to 1. Marginal posteriors by summation. 95% CrI from quantile function on marginal.
-### Prior Families
-- **Vague:** mu ~ N(0, 10²), tau ~ half-Cauchy(2)
-- **Weakly informative:** mu ~ N(0, 1²), tau ~ half-Cauchy(0.5)
-- **Skeptical:** mu ~ N(0, 0.5²), tau ~ half-Cauchy(0.3)
-### Sensitivity Analysis
-All three priors run automatically. Overlay plots show posterior shift. Key metric: max absolute difference in posterior mean across priors.
+Type: methods
+Primary estimand: Posterior mean and 95% credible interval
+App: BayesianMA v1.0 (1,723 lines)
+Data: Magnesium-for-MI (8 trials), Aspirin-for-stroke (6 trials)
+Code: https://github.com/mahmood726-cyber/bayesianma
+Version: 1.0
+Certainty: moderate
+Validation: PASS (25 Selenium tests)
 
-## 3. Results
-**Magnesium dataset (k=8):** Posterior mean log-OR = -0.53 (weakly informative), -0.57 (vague), -0.48 (skeptical). CrI width: 1.40 (weakly informative), 1.68 (vague), 1.12 (skeptical). Posterior probability of benefit (OR<1): 89.3% (weakly informative).
+References
 
-**Aspirin dataset (k=6):** Posterior mean log-RR = -0.22 across all priors (max difference 0.03). Posterior probability of benefit: 97.2%. Prior-insensitive conclusion.
+1. Roever C, Bender R, Dias S, et al. On weakly informative prior distributions for the heterogeneity parameter in Bayesian random-effects meta-analysis. Res Synth Methods. 2021;12(4):448-474.
+2. Sutton AJ, Abrams KR. Bayesian methods in meta-analysis and evidence synthesis. Stat Methods Med Res. 2001;10(4):277-303.
+3. Higgins JPT, Thompson SG, Spiegelhalter DJ. A re-evaluation of random-effects meta-analysis. J R Stat Soc Ser A. 2009;172(1):137-159.
 
-## 4. Discussion
-BayesianMA demonstrates that grid approximation is sufficient for the normal-normal model and runs in <1 second in the browser. The magnesium example shows prior sensitivity (89% vs. hypothetical 95% under vague prior); the aspirin example shows prior robustness. Limitation: grid approximation doesn't scale beyond 2 parameters.
+AI Disclosure
 
-## References
-1. Sutton AJ, Abrams KR. Bayesian methods in meta-analysis and evidence synthesis. *Stat Methods Med Res*. 2001;10:277-303.
-2. Rover C et al. Bayesian random-effects meta-analysis using the bayesmeta R package. *J Stat Softw*. 2020;93(6):1-51.
+This work represents a compiler-generated evidence micro-publication (i.e., a structured, pipeline-based synthesis output). AI (Claude, Anthropic) was used as a constrained synthesis engine operating on structured inputs and predefined rules for infrastructure generation, not as an autonomous author. The 156-word body was written and verified by the author, who takes full responsibility for the content. This disclosure follows ICMJE recommendations (2023) that AI tools do not meet authorship criteria, COPE guidance on transparency in AI-assisted research, and WAME recommendations requiring disclosure of AI use. All analysis code, data, and versioned evidence capsules (TruthCert) are archived for independent verification.
