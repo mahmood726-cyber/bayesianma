@@ -3,7 +3,7 @@
   "slug": "bayesian-ma-browser-prior-sensitivity",
   "author": "Mahmood Ahmad",
   "date": "2026-03-26",
-  "body": "Can Bayesian random-effects meta-analysis with prior sensitivity analysis be performed entirely in a browser without requiring R, Stan, or specialized installation? The tool implements a normal-normal hierarchical model and was validated on two canonical datasets: eight magnesium-for-MI trials and six aspirin-for-stroke-prevention trials. Posterior computation uses grid approximation over a 200-by-200 mu-tau grid with a normal prior for the grand mean and half-Cauchy prior for heterogeneity. For the magnesium dataset the posterior OR mean was -0.53 (95% credible interval -1.27 to 0.13) under a weakly informative prior with half-Cauchy 0.5. Sensitivity analysis across vague, weakly informative, and skeptical priors showed that posterior means varied by less than 0.15 while credible interval widths changed by up to 40%. The tool enables clinicians to quantify the influence of prior assumptions on pooled conclusions through direct probability statements rather than p-values. Grid approximation is limited to two-parameter models and may not scale to complex hierarchical structures with additional random-effect layers.",
+  "body": "Can Bayesian random-effects meta-analysis with prior sensitivity analysis be performed entirely in a browser without requiring R, Stan, or specialized installation? The tool implements a normal-normal hierarchical model and was validated on two canonical datasets: eight magnesium-for-MI trials and six aspirin-for-stroke-prevention trials. Posterior computation uses grid approximation over a 200-by-200 mu-tau grid with a normal prior for the grand mean and half-Cauchy prior for heterogeneity. For the magnesium dataset the posterior log-OR mean was -0.53 (95% credible interval -1.27 to 0.13) under a weakly informative prior with half-Cauchy 0.5. Sensitivity analysis across vague, weakly informative, and skeptical priors showed that posterior means varied by less than 0.15 while credible interval widths changed by up to 40%. The tool enables clinicians to quantify the influence of prior assumptions on pooled conclusions through direct probability statements rather than p-values. Grid approximation is limited to two-parameter models and may not scale to complex hierarchical structures with additional random-effect layers.",
   "word_count": 156,
   "sentence_count": 7,
   "sentences": [
@@ -21,7 +21,7 @@
     },
     {
       "role": "Primary result",
-      "text": "For the magnesium dataset the posterior OR mean was -0.53 (95% credible interval -1.27 to 0.13) under a weakly informative prior with half-Cauchy 0.5."
+      "text": "For the magnesium dataset the posterior log-OR mean was -0.53 (95% credible interval -1.27 to 0.13) under a weakly informative prior with half-Cauchy 0.5."
     },
     {
       "role": "Robustness",
@@ -78,7 +78,7 @@
       {
         "name": "result sentence has interval",
         "ok": true,
-        "detail": "Sentence 4 should include a confidence interval."
+        "detail": "Sentence 4 should include a quantitative result such as a percentage, count, or interval."
       },
       {
         "name": "result sentence has estimand",
