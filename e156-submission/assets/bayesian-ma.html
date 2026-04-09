@@ -453,11 +453,23 @@ pre.code-block {
       <div style="overflow-x:auto;">
         <table class="data-table" id="shrinkageTable">
           <thead>
-            <tr><th>Study</th><th>Original (yi)</th><th>Posterior Mean</th><th>Shrinkage Factor</th><th>95% CrI</th></tr>
+            <tr><th>Study</th><th>Original (yi)</th><th>Posterior Mean</th><th>Shrinkage Factor</th><th>95% Bayesian CrI</th></tr>
           </thead>
           <tbody id="shrinkageTableBody"></tbody>
         </table>
       </div>
+    </div>
+
+    <div class="card">
+      <h3>Frequentist Comparison (HKSJ)</h3>
+      <div class="alert alert-info">DerSimonian-Laird pooled estimate with Hartung-Knapp-Sidik-Jonkman (HKSJ) confidence interval using t<sub>k-1</sub> and floor correction. Shown for comparison against the Bayesian posterior.</div>
+      <div class="grid-4" id="freqStats"></div>
+    </div>
+
+    <div class="card">
+      <h3>MCMC Diagnostics</h3>
+      <div class="alert alert-info">Effective Sample Size (ESS) and convergence diagnostics for the grid approximation posterior. ESS &lt; 400 suggests unreliable CrI; refine grid or priors.</div>
+      <div class="grid-4" id="diagnosticsStats"></div>
     </div>
 
     <div class="card">
@@ -584,6 +596,240 @@ pre.code-block {
   function logHalfCauchyPDF(tau, scale) {
     if (tau < 0) return -Infinity;
     return Math.log(2) - Math.log(Math.PI) - Math.log(scale) - Math.log(1 + (tau / scale) * (tau / scale));
+  }
+
+  /* ---------- _core math helpers (from meta-stats-core.js) ---------- */
+  function lnGamma_core(x) {
+    var g = 7;
+    var c = [0.99999999999980993, 676.5203681218851, -1259.1392167224028,
+             771.32342877765313, -176.61502916214059, 12.507343278686905,
+             -0.13857109526572012, 9.9843695780195716e-6, 1.5056327351493116e-7];
+    if (x < 0.5) return Math.log(Math.PI / Math.sin(Math.PI * x)) - lnGamma_core(1 - x);
+    x -= 1;
+    var a = c[0];
+    var t = x + g + 0.5;
+    for (var i = 1; i < c.length; i++) a += c[i] / (x + i);
+    return 0.5 * Math.log(2 * Math.PI) + (x + 0.5) * Math.log(t) - t + Math.log(a);
+  }
+
+  function betaCF_core(x, a, b) {
+    var f = 1, c2 = 1, d = 1 - (a + b) * x / (a + 1);
+    if (Math.abs(d) < 1e-30) d = 1e-30;
+    d = 1 / d; f = d;
+    for (var m = 1; m <= 200; m++) {
+      var num = m * (b - m) * x / ((a + 2 * m - 1) * (a + 2 * m));
+      d = 1 + num * d; if (Math.abs(d) < 1e-30) d = 1e-30; d = 1 / d;
+      c2 = 1 + num / c2; if (Math.abs(c2) < 1e-30) c2 = 1e-30;
+      f *= d * c2;
+      num = -(a + m) * (a + b + m) * x / ((a + 2 * m) * (a + 2 * m + 1));
+      d = 1 + num * d; if (Math.abs(d) < 1e-30) d = 1e-30; d = 1 / d;
+      c2 = 1 + num / c2; if (Math.abs(c2) < 1e-30) c2 = 1e-30;
+      var delta = d * c2;
+      f *= delta;
+      if (Math.abs(delta - 1) < 1e-12) break;
+    }
+    return f;
+  }
+
+  function regBetaI_core(x, a, b) {
+    if (x <= 0) return 0;
+    if (x >= 1) return 1;
+    var lnBeta = lnGamma_core(a) + lnGamma_core(b) - lnGamma_core(a + b);
+    var front = Math.exp(Math.log(x) * a + Math.log(1 - x) * b - lnBeta) / a;
+    return front * betaCF_core(x, a, b);
+  }
+
+  function tPDF_core(t, df) {
+    return Math.exp(lnGamma_core((df + 1) / 2) - lnGamma_core(df / 2) - 0.5 * Math.log(df * Math.PI)
+           - ((df + 1) / 2) * Math.log(1 + t * t / df));
+  }
+
+  function tCDF_core(t, df) {
+    var x = df / (df + t * t);
+    var ib = regBetaI_core(x, df / 2, 0.5);
+    return t < 0 ? 0.5 * ib : 1 - 0.5 * ib;
+  }
+
+  function normalQuantile_core(p) {
+    if (p <= 0) return -Infinity;
+    if (p >= 1) return Infinity;
+    if (p === 0.5) return 0;
+    var a = [-3.969683028665376e1, 2.209460984245205e2, -2.759285104469687e2,
+             1.383577518672690e2, -3.066479806614716e1, 2.506628277459239e0];
+    var b = [-5.447609879822406e1, 1.615858368580409e2, -1.556989798598866e2,
+             6.680131188771972e1, -1.328068155288572e1];
+    var c = [-7.784894002430293e-3, -3.223964580411365e-1, -2.400758277161838e0,
+             -2.549732539343734e0, 4.374664141464968e0, 2.938163982698783e0];
+    var d = [7.784695709041462e-3, 3.224671290700398e-1, 2.445134137142996e0, 3.754408661907416e0];
+    var pLow = 0.02425, pHigh = 1 - pLow;
+    var q, r;
+    if (p < pLow) {
+      q = Math.sqrt(-2 * Math.log(p));
+      return (((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5]) /
+             ((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1);
+    } else if (p <= pHigh) {
+      q = p - 0.5; r = q * q;
+      return (((((a[0]*r+a[1])*r+a[2])*r+a[3])*r+a[4])*r+a[5])*q /
+             (((((b[0]*r+b[1])*r+b[2])*r+b[3])*r+b[4])*r+1);
+    } else {
+      q = Math.sqrt(-2 * Math.log(1 - p));
+      return -(((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5]) /
+              ((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1);
+    }
+  }
+
+  function tQuantile_core(p, df) {
+    if (df <= 0) return NaN;
+    if (df === 1) return Math.tan(Math.PI * (p - 0.5));
+    if (df === 2) return (2 * p - 1) / Math.sqrt(2 * p * (1 - p));
+    var zp = normalQuantile_core(p);
+    var g1 = (zp * zp * zp + zp) / (4 * df);
+    var g2 = (5 * Math.pow(zp, 5) + 16 * zp * zp * zp + 3 * zp) / (96 * df * df);
+    var g3 = (3 * Math.pow(zp, 7) + 19 * Math.pow(zp, 5) + 17 * zp * zp * zp - 15 * zp) / (384 * Math.pow(df, 3));
+    var t = zp + g1 + g2 + g3;
+    for (var i = 0; i < 3; i++) {
+      var cdf = tCDF_core(t, df);
+      var pdf = tPDF_core(t, df);
+      if (pdf < 1e-15) break;
+      t -= (cdf - p) / pdf;
+    }
+    return t;
+  }
+
+  /* ---------- Frequentist DL + HKSJ pooled estimate ---------- */
+  function computeFrequentistHKSJ(studies) {
+    var k = studies.length;
+    if (k < 2) return null;
+    var yi = studies.map(function(s) { return s.effect; });
+    var vi = studies.map(function(s) { return s.se * s.se; });
+
+    // Fixed-effect pooling
+    var w = vi.map(function(v) { return 1 / v; });
+    var sumW = 0;
+    for (var i = 0; i < k; i++) sumW += w[i];
+    var thetaFE = 0;
+    for (var i = 0; i < k; i++) thetaFE += w[i] * yi[i];
+    thetaFE /= sumW;
+    var Q = 0;
+    for (var i = 0; i < k; i++) Q += w[i] * (yi[i] - thetaFE) * (yi[i] - thetaFE);
+
+    // DL tau2
+    var sumW2 = 0;
+    for (var i = 0; i < k; i++) sumW2 += w[i] * w[i];
+    var C = sumW - sumW2 / sumW;
+    var tau2 = Math.max(0, (Q - (k - 1)) / C);
+
+    // RE pooling with DL tau2
+    var ws = vi.map(function(v) { return 1 / (v + tau2); });
+    var sumWs = 0;
+    for (var i = 0; i < k; i++) sumWs += ws[i];
+    var thetaRE = 0;
+    for (var i = 0; i < k; i++) thetaRE += ws[i] * yi[i];
+    thetaRE /= sumWs;
+    var seRE = Math.sqrt(1 / sumWs);
+
+    // HKSJ variance with floor correction
+    var Qs = 0;
+    for (var i = 0; i < k; i++) Qs += ws[i] * (yi[i] - thetaRE) * (yi[i] - thetaRE);
+    var hksjVar = Qs / ((k - 1) * sumWs);
+    var waldVar = 1 / sumWs;
+    // Floor: if Q < k-1, HKSJ narrows CI below DL — set floor: max(hksjVar, waldVar)
+    hksjVar = Math.max(hksjVar, waldVar);
+    var seHKSJ = Math.sqrt(hksjVar);
+
+    // t-critical with k-1 df (NOT z)
+    var tcrit = Math.abs(tQuantile_core(0.025, k - 1));
+    var ciLo = thetaRE - tcrit * seHKSJ;
+    var ciHi = thetaRE + tcrit * seHKSJ;
+
+    // Wald CI for comparison
+    var waldLo = thetaRE - 1.959964 * seRE;
+    var waldHi = thetaRE + 1.959964 * seRE;
+
+    // Heterogeneity
+    var df = k - 1;
+    var I2 = Math.max(0, 100 * (Q - df) / Q);
+    if (Q <= 0) I2 = 0;
+
+    return {
+      theta: thetaRE, se: seRE, seHKSJ: seHKSJ, tau2: tau2,
+      ciLo: ciLo, ciHi: ciHi, waldLo: waldLo, waldHi: waldHi,
+      Q: Q, I2: I2, k: k, tcrit: tcrit
+    };
+  }
+
+  /* ---------- ESS and Rhat diagnostics for grid approximation ---------- */
+  function computeGridDiagnostics(posteriorWeights, gridValues, dtau) {
+    // ESS for discrete posterior distribution via Kish's effective sample size
+    // ESS_Kish = (sum(w))^2 / sum(w^2), where w = normalized posterior weights
+    // This measures how many independent samples the grid is "worth"
+    var n = posteriorWeights.length;
+    var sumW = 0, sumW2 = 0;
+    for (var i = 0; i < n; i++) {
+      var w_i = posteriorWeights[i] * dtau;
+      sumW += w_i;
+      sumW2 += w_i * w_i;
+    }
+    var essKish = (sumW2 > 0) ? (sumW * sumW) / sumW2 : 0;
+
+    // Also compute entropy-based ESS: ESS_ent = exp(H) where H = -sum(p*log(p))
+    var entropy = 0;
+    for (var i = 0; i < n; i++) {
+      var p_i = posteriorWeights[i] * dtau;
+      if (p_i > 1e-30) {
+        entropy -= p_i * Math.log(p_i);
+      }
+    }
+    var essEntropy = Math.exp(entropy);
+
+    // Rhat-like diagnostic: split the grid posterior into two halves
+    // and compare means (pseudo-convergence check)
+    var half = Math.floor(n / 2);
+    var mean1 = 0, var1 = 0, sum1 = 0;
+    var mean2 = 0, var2 = 0, sum2 = 0;
+
+    for (var i = 0; i < half; i++) {
+      var wt = posteriorWeights[i] * dtau;
+      mean1 += gridValues[i] * wt;
+      sum1 += wt;
+    }
+    for (var i = half; i < n; i++) {
+      var wt = posteriorWeights[i] * dtau;
+      mean2 += gridValues[i] * wt;
+      sum2 += wt;
+    }
+    if (sum1 > 0) mean1 /= sum1;
+    if (sum2 > 0) mean2 /= sum2;
+
+    for (var i = 0; i < half; i++) {
+      var wt = posteriorWeights[i] * dtau;
+      var diff = gridValues[i] - mean1;
+      var1 += wt * diff * diff;
+    }
+    for (var i = half; i < n; i++) {
+      var wt = posteriorWeights[i] * dtau;
+      var diff = gridValues[i] - mean2;
+      var2 += wt * diff * diff;
+    }
+    if (sum1 > 0) var1 /= sum1;
+    if (sum2 > 0) var2 /= sum2;
+
+    // Pooled within-half variance (W) and between-half variance (B)
+    var W = (var1 + var2) / 2;
+    var grandMean = (mean1 * sum1 + mean2 * sum2) / (sum1 + sum2);
+    var B = ((mean1 - grandMean) * (mean1 - grandMean) + (mean2 - grandMean) * (mean2 - grandMean)) / 2;
+    // V_hat = W + B (simplified: between + within variance)
+    var V_hat = W + B;
+    var rhat = (W > 1e-15) ? Math.sqrt(V_hat / W) : 1.0;
+
+    return {
+      essKish: essKish,
+      essEntropy: essEntropy,
+      rhat: rhat,
+      gridPoints: n,
+      essOK: essKish >= 400,
+      rhatOK: rhat <= 1.01
+    };
   }
 
   /* ==========================================================
@@ -831,6 +1077,34 @@ pre.code-block {
       tauPriorDensity.push({ x: tauGrid[g], y: halfCauchyPDF(tauGrid[g], priorTauScale) });
     }
 
+    /* --- Step 7: ESS/Rhat diagnostics for tau posterior --- */
+    var tauDiag = computeGridDiagnostics(posteriorTau, tauGrid, dtau);
+
+    /* --- Step 8: ESS for mu posterior (from mixture weights) --- */
+    // Compute mu posterior density on a fine grid and assess ESS
+    var muGridN = 500;
+    var muGridMin = muMean - 5 * muSD;
+    var muGridMax = muMean + 5 * muSD;
+    var muGridStep = (muGridMax - muGridMin) / (muGridN - 1);
+    var muGridWeights = new Array(muGridN);
+    var muGridVals = new Array(muGridN);
+    var muGridSum = 0;
+    for (var g2 = 0; g2 < muGridN; g2++) {
+      var xVal = muGridMin + g2 * muGridStep;
+      muGridVals[g2] = xVal;
+      var dens = 0;
+      for (var gg = 0; gg < GRID_POINTS; gg++) {
+        dens += posteriorTau[gg] * dtau * normalPDF(xVal, muPostMeans[gg], muPostSDs[gg]);
+      }
+      muGridWeights[g2] = dens;
+      muGridSum += dens * muGridStep;
+    }
+    // Normalize
+    for (var g2 = 0; g2 < muGridN; g2++) {
+      muGridWeights[g2] /= muGridSum;
+    }
+    var muDiag = computeGridDiagnostics(muGridWeights, muGridVals, muGridStep);
+
     return {
       mu: { mean: muMean, median: muMedian, sd: muSD, criLo: muCrILo, criHi: muCrIHi, pLt0: pMuLt0, pGt0: pMuGt0 },
       tau: { mean: tauMean, median: tauMedian, sd: tauSD, criLo: tauCrILo, criHi: tauCrIHi },
@@ -840,7 +1114,8 @@ pre.code-block {
       muPriorDensity: muPriorDensity,
       tauDensity: tauDensity,
       tauPriorDensity: tauPriorDensity,
-      priors: { muMean: priorMuMean, muSD: priorMuSD, tauScale: priorTauScale }
+      priors: { muMean: priorMuMean, muSD: priorMuSD, tauScale: priorTauScale },
+      diagnostics: { tau: tauDiag, mu: muDiag }
     };
   }
 
@@ -906,6 +1181,8 @@ pre.code-block {
     dom.reportContent = $('reportContent');
     dom.muStats = $('muStats');
     dom.tauStats = $('tauStats');
+    dom.freqStats = $('freqStats');
+    dom.diagnosticsStats = $('diagnosticsStats');
     dom.dicStats = $('dicStats');
     dom.shrinkageTableBody = $('shrinkageTableBody');
     dom.sensitivityTableBody = $('sensitivityTableBody');
@@ -1089,6 +1366,9 @@ pre.code-block {
     // Main analysis
     state.results = runBayesianMA(state.studies, m0, s0, sc);
 
+    // Frequentist HKSJ comparison
+    state.freqHKSJ = computeFrequentistHKSJ(state.studies);
+
     // Sensitivity analysis: 3 scenarios
     state.sensitivity = [
       { label: 'Vague', muMean: 0, muSD: 10, tauScale: 1.0,
@@ -1136,6 +1416,40 @@ pre.code-block {
       + statCardHTML('Median', fmt(r.tau.median, 4), '')
       + statCardHTML('95% CrI', fmt(r.tau.criLo, 4) + ' to ' + fmt(r.tau.criHi, 4), '')
       + statCardHTML('tau\u00B2 (mean)', fmt(r.tau.mean * r.tau.mean, 4), '');
+
+    // Frequentist HKSJ comparison
+    if (state.freqHKSJ) {
+      var fq = state.freqHKSJ;
+      dom.freqStats.innerHTML =
+        statCardHTML('Frequentist (HKSJ)', fmt(fq.theta, 4), 'DL + HKSJ CI')
+        + statCardHTML('95% CI (HKSJ)', fmt(fq.ciLo, 4) + ' to ' + fmt(fq.ciHi, 4),
+            't(' + (fq.k - 1) + ') = ' + fmt(fq.tcrit, 3))
+        + statCardHTML('tau\u00B2 (DL)', fmt(fq.tau2, 4), 'I\u00B2 = ' + fmt(fq.I2, 1) + '%')
+        + statCardHTML('Wald 95% CI', fmt(fq.waldLo, 4) + ' to ' + fmt(fq.waldHi, 4), 'z-based (for comparison)');
+    }
+
+    // ESS/Rhat diagnostics
+    if (r.diagnostics) {
+      var diagMu = r.diagnostics.mu;
+      var diagTau = r.diagnostics.tau;
+      var essColor = function(ess) { return ess >= 400 ? 'color:var(--color-success)' : 'color:var(--color-danger)'; };
+      var rhatColor = function(rh) { return rh <= 1.01 ? 'color:var(--color-success)' : 'color:var(--color-danger)'; };
+
+      var muEssHtml = '<div class="stat-card"><div class="stat-label">ESS (mu)</div>'
+        + '<div class="stat-value" style="' + essColor(diagMu.essKish) + '">' + fmt(diagMu.essKish, 0) + '</div>'
+        + '<div class="stat-sub">' + (diagMu.essOK ? 'Adequate' : 'LOW: CrI may be unreliable') + '</div></div>';
+      var tauEssHtml = '<div class="stat-card"><div class="stat-label">ESS (tau)</div>'
+        + '<div class="stat-value" style="' + essColor(diagTau.essKish) + '">' + fmt(diagTau.essKish, 0) + '</div>'
+        + '<div class="stat-sub">' + (diagTau.essOK ? 'Adequate' : 'LOW: CrI may be unreliable') + '</div></div>';
+      var muRhatHtml = '<div class="stat-card"><div class="stat-label">Rhat (mu)</div>'
+        + '<div class="stat-value" style="' + rhatColor(diagMu.rhat) + '">' + fmt(diagMu.rhat, 4) + '</div>'
+        + '<div class="stat-sub">' + (diagMu.rhatOK ? 'Converged' : 'NOT converged: do not interpret') + '</div></div>';
+      var tauRhatHtml = '<div class="stat-card"><div class="stat-label">Rhat (tau)</div>'
+        + '<div class="stat-value" style="' + rhatColor(diagTau.rhat) + '">' + fmt(diagTau.rhat, 4) + '</div>'
+        + '<div class="stat-sub">' + (diagTau.rhatOK ? 'Converged' : 'NOT converged: do not interpret') + '</div></div>';
+
+      dom.diagnosticsStats.innerHTML = muEssHtml + tauEssHtml + muRhatHtml + tauRhatHtml;
+    }
 
     // DIC
     dom.dicStats.innerHTML =
@@ -1206,11 +1520,14 @@ pre.code-block {
     if (!r) return;
     var c = getPlotColors();
     var k = r.shrinkage.length;
+    var hasFreq = !!state.freqHKSJ;
+    var extraRows = hasFreq ? 3 : 2; // Bayesian Overall + Freq HKSJ + gap
     var rowH = 36;
-    var topMargin = 40, bottomMargin = 60, leftMargin = 160, rightMargin = 40;
+    var topMargin = 40, bottomMargin = 70, leftMargin = 160, rightMargin = 40;
     var plotW = 500;
     var svgW = leftMargin + plotW + rightMargin;
-    var svgH = topMargin + (k + 2) * rowH + bottomMargin;
+    var svgH = topMargin + (k + extraRows) * rowH + bottomMargin;
+    var zCrit = normalQuantile_core(0.975); // 1.959964 (proper z-quantile)
 
     var svg = svgEl('svg', { width: svgW, height: svgH, viewBox: '0 0 ' + svgW + ' ' + svgH });
 
@@ -1220,11 +1537,14 @@ pre.code-block {
     // Find x-axis range
     var allVals = [];
     r.shrinkage.forEach(function(s) {
-      allVals.push(s.original, s.original - 1.96 * state.studies.filter(function(st) { return st.study === s.study; })[0].se);
-      allVals.push(s.original + 1.96 * state.studies.filter(function(st) { return st.study === s.study; })[0].se);
+      allVals.push(s.original, s.original - zCrit * state.studies.filter(function(st) { return st.study === s.study; })[0].se);
+      allVals.push(s.original + zCrit * state.studies.filter(function(st) { return st.study === s.study; })[0].se);
       allVals.push(s.posteriorMean, s.criLo, s.criHi);
     });
     allVals.push(r.mu.mean, r.mu.criLo, r.mu.criHi);
+    if (hasFreq) {
+      allVals.push(state.freqHKSJ.ciLo, state.freqHKSJ.ciHi, state.freqHKSJ.theta);
+    }
     var xMin = Math.min.apply(null, allVals) - 0.2;
     var xMax = Math.max.apply(null, allVals) + 0.2;
 
@@ -1233,21 +1553,22 @@ pre.code-block {
 
     // Reference line at 0
     var x0 = xScale(0);
-    svg.appendChild(svgEl('line', { x1: x0, y1: topMargin, x2: x0, y2: topMargin + (k + 1.5) * rowH, stroke: c.textMuted, 'stroke-width': 1, 'stroke-dasharray': '4,3' }));
+    svg.appendChild(svgEl('line', { x1: x0, y1: topMargin, x2: x0, y2: topMargin + (k + extraRows - 0.5) * rowH, stroke: c.textMuted, 'stroke-width': 1, 'stroke-dasharray': '4,3' }));
 
     // Grid lines + axis
+    var axisY = topMargin + (k + extraRows - 0.5) * rowH;
     var nTicks = 5;
     var tickStep = (xMax - xMin) / nTicks;
     for (var t = 0; t <= nTicks; t++) {
       var val = xMin + t * tickStep;
       var tx = xScale(val);
-      svg.appendChild(svgEl('line', { x1: tx, y1: topMargin + (k + 1.5) * rowH, x2: tx, y2: topMargin + (k + 1.5) * rowH + 5, stroke: c.textMuted, 'stroke-width': 1 }));
-      var label = svgEl('text', { x: tx, y: topMargin + (k + 1.5) * rowH + 18, fill: c.textMuted, 'text-anchor': 'middle', 'font-size': '11' });
+      svg.appendChild(svgEl('line', { x1: tx, y1: axisY, x2: tx, y2: axisY + 5, stroke: c.textMuted, 'stroke-width': 1 }));
+      var label = svgEl('text', { x: tx, y: axisY + 18, fill: c.textMuted, 'text-anchor': 'middle', 'font-size': '11' });
       label.textContent = val.toFixed(2);
       svg.appendChild(label);
     }
     // Axis line
-    svg.appendChild(svgEl('line', { x1: leftMargin, y1: topMargin + (k + 1.5) * rowH, x2: leftMargin + plotW, y2: topMargin + (k + 1.5) * rowH, stroke: c.textMuted, 'stroke-width': 1 }));
+    svg.appendChild(svgEl('line', { x1: leftMargin, y1: axisY, x2: leftMargin + plotW, y2: axisY, stroke: c.textMuted, 'stroke-width': 1 }));
 
     // Title
     var titleEl = svgEl('text', { x: svgW / 2, y: 22, fill: c.text, 'text-anchor': 'middle', 'font-size': '14', 'font-weight': '600' });
@@ -1265,9 +1586,9 @@ pre.code-block {
       lbl.textContent = s.study;
       svg.appendChild(lbl);
 
-      // Original CI line
-      var origLo = s.original - 1.96 * origStudy.se;
-      var origHi = s.original + 1.96 * origStudy.se;
+      // Frequentist study CI line (z-based)
+      var origLo = s.original - zCrit * origStudy.se;
+      var origHi = s.original + zCrit * origStudy.se;
       svg.appendChild(svgEl('line', { x1: xScale(origLo), y1: y - 4, x2: xScale(origHi), y2: y - 4, stroke: c.textMuted, 'stroke-width': 1.5 }));
 
       // Original point (hollow circle)
@@ -1283,10 +1604,10 @@ pre.code-block {
       svg.appendChild(svgEl('line', { x1: xScale(s.original), y1: y - 4, x2: xScale(s.posteriorMean), y2: y + 6, stroke: c.accent, 'stroke-width': 0.8, 'stroke-dasharray': '2,2', opacity: '0.6' }));
     }
 
-    // Grand mean diamond
+    // Bayesian grand mean diamond
     var gdY = yPos(k + 0.3);
     var gdLbl = svgEl('text', { x: leftMargin - 10, y: gdY + 4, fill: c.primary, 'text-anchor': 'end', 'font-size': '12', 'font-weight': '700' });
-    gdLbl.textContent = 'Overall';
+    gdLbl.textContent = 'Bayesian (CrI)';
     svg.appendChild(gdLbl);
 
     var dSize = 8;
@@ -1297,16 +1618,36 @@ pre.code-block {
     // Grand mean CrI
     svg.appendChild(svgEl('line', { x1: xScale(r.mu.criLo), y1: gdY, x2: xScale(r.mu.criHi), y2: gdY, stroke: c.primary, 'stroke-width': 2 }));
 
+    // Frequentist HKSJ comparison row
+    if (hasFreq) {
+      var fqY = yPos(k + 1.3);
+      var fqLbl = svgEl('text', { x: leftMargin - 10, y: fqY + 4, fill: c.success, 'text-anchor': 'end', 'font-size': '12', 'font-weight': '700' });
+      fqLbl.textContent = 'Freq (HKSJ)';
+      svg.appendChild(fqLbl);
+
+      var fq = state.freqHKSJ;
+      var fqX = xScale(fq.theta);
+      var fqPath = 'M' + fqX + ',' + (fqY - dSize) + ' L' + (fqX + dSize * 1.5) + ',' + fqY + ' L' + fqX + ',' + (fqY + dSize) + ' L' + (fqX - dSize * 1.5) + ',' + fqY + ' Z';
+      svg.appendChild(svgEl('path', { d: fqPath, fill: 'none', stroke: c.success, 'stroke-width': 2 }));
+      svg.appendChild(svgEl('line', { x1: xScale(fq.ciLo), y1: fqY, x2: xScale(fq.ciHi), y2: fqY, stroke: c.success, 'stroke-width': 2 }));
+    }
+
     // Legend
-    var legY = topMargin + (k + 2) * rowH + 10;
+    var legY = topMargin + (k + extraRows) * rowH + 10;
     svg.appendChild(svgEl('circle', { cx: leftMargin + 10, cy: legY, r: 4, fill: 'none', stroke: c.textMuted, 'stroke-width': 1.5 }));
     var leg1 = svgEl('text', { x: leftMargin + 20, y: legY + 4, fill: c.textMuted, 'font-size': '11' });
-    leg1.textContent = 'Original';
+    leg1.textContent = 'Frequentist (study CI)';
     svg.appendChild(leg1);
-    svg.appendChild(svgEl('circle', { cx: leftMargin + 100, cy: legY, r: 4, fill: c.primary, stroke: c.primary, 'stroke-width': 1.5 }));
-    var leg2 = svgEl('text', { x: leftMargin + 110, y: legY + 4, fill: c.textMuted, 'font-size': '11' });
-    leg2.textContent = 'Posterior (shrunken)';
+    svg.appendChild(svgEl('circle', { cx: leftMargin + 150, cy: legY, r: 4, fill: c.primary, stroke: c.primary, 'stroke-width': 1.5 }));
+    var leg2 = svgEl('text', { x: leftMargin + 160, y: legY + 4, fill: c.textMuted, 'font-size': '11' });
+    leg2.textContent = 'Bayesian (CrI)';
     svg.appendChild(leg2);
+    if (hasFreq) {
+      svg.appendChild(svgEl('circle', { cx: leftMargin + 280, cy: legY, r: 4, fill: 'none', stroke: c.success, 'stroke-width': 1.5 }));
+      var leg3 = svgEl('text', { x: leftMargin + 290, y: legY + 4, fill: c.textMuted, 'font-size': '11' });
+      leg3.textContent = 'Freq HKSJ (pooled)';
+      svg.appendChild(leg3);
+    }
 
     dom.forestPlotContainer.innerHTML = '';
     dom.forestPlotContainer.appendChild(svg);
