@@ -11,6 +11,9 @@ import sys
 import time
 import pytest
 import pathlib
+import threading
+from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
+from functools import partial
 
 # Note: avoid sys.stdout reassignment as it conflicts with pytest capture.
 # Use PYTHONUTF8=1 env var or pytest -s if Unicode output is needed.
@@ -26,13 +29,26 @@ from selenium.webdriver.support import expected_conditions as EC
 # Fixtures
 # ---------------------------------------------------------------------------
 
-HTML_PATH = pathlib.Path(r"C:\Models\BayesianMA\bayesian-ma.html").resolve()
-FILE_URL = HTML_PATH.as_uri()
+REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
+
+
+def _start_test_server(handler):
+    try:
+        server = ThreadingHTTPServer(("127.0.0.1", 8000), handler)
+    except OSError:
+        server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    return server, thread
 
 
 @pytest.fixture(scope="module")
 def driver():
     """Launch Chrome headless, override window.confirm, yield driver."""
+    handler = partial(SimpleHTTPRequestHandler, directory=str(REPO_ROOT))
+    server, thread = _start_test_server(handler)
+    app_url = f"http://127.0.0.1:{server.server_port}/bayesian-ma.html"
+
     opts = Options()
     opts.add_argument("--headless=new")
     opts.add_argument("--no-sandbox")
@@ -42,15 +58,19 @@ def driver():
     opts.set_capability("goog:loggingPrefs", {"browser": "ALL"})
 
     drv = webdriver.Chrome(options=opts)
-    drv.get(FILE_URL)
-    # Override confirm dialogs to always return True
-    drv.execute_script("window.confirm = function() { return true; };")
-    # Clear localStorage to start fresh
-    drv.execute_script("localStorage.clear();")
-    drv.get(FILE_URL)
-    drv.execute_script("window.confirm = function() { return true; };")
-    yield drv
-    drv.quit()
+    try:
+        drv.get(app_url)
+        # Override confirm dialogs to always return True
+        drv.execute_script("window.confirm = function() { return true; };")
+        # Clear localStorage to start fresh
+        drv.execute_script("localStorage.clear();")
+        drv.get(app_url)
+        drv.execute_script("window.confirm = function() { return true; };")
+        yield drv
+    finally:
+        drv.quit()
+        server.shutdown()
+        server.server_close()
 
 
 def js_click(driver, el):

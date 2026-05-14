@@ -339,7 +339,7 @@ pre.code-block {
   <div class="card">
     <h3>Paste CSV Data</h3>
     <div class="alert alert-info">Paste CSV with columns: study, effect, se (header row optional). Tab or comma separated.</div>
-    <textarea id="csvPaste" rows="5" placeholder="Study1, -0.52, 0.35&#10;Study2, -0.18, 0.44"></textarea>
+    <textarea id="csvPaste" rows="5" aria-label="CSV study data" placeholder="Study1, -0.52, 0.35&#10;Study2, -0.18, 0.44"></textarea>
     <button class="btn btn-primary btn-sm" style="margin-top:var(--space-2);" id="btnParseCsv">Parse CSV</button>
   </div>
 </div>
@@ -519,7 +519,7 @@ pre.code-block {
         <button class="btn btn-secondary btn-sm" id="btnPrint">Print Report</button>
         <button class="btn btn-primary btn-sm" id="btnExportMAIF" style="background:#2563eb;">Export MAIF</button>
         <button class="btn btn-primary btn-sm" id="btnImportMAIF" style="background:#16a34a;">Import MAIF</button>
-        <input type="file" id="maifFileInput" accept=".json" style="display:none;">
+        <input type="file" id="maifFileInput" accept=".json" aria-label="Import MAIF JSON file" style="display:none;">
       </div>
     </div>
   </div>
@@ -1256,9 +1256,9 @@ pre.code-block {
     var html = '';
     state.studies.forEach(function(s, idx) {
       html += '<tr data-row="' + idx + '">'
-        + '<td><input type="text" class="input-study" data-idx="' + idx + '" value="' + escapeHtml(s.study) + '"></td>'
-        + '<td><input type="number" class="input-effect" data-idx="' + idx + '" step="0.001" value="' + s.effect + '"></td>'
-        + '<td><input type="number" class="input-se" data-idx="' + idx + '" step="0.001" min="0.001" value="' + s.se + '"></td>'
+        + '<td><input type="text" class="input-study" data-idx="' + idx + '" aria-label="Study name" value="' + escapeHtml(s.study) + '"></td>'
+        + '<td><input type="number" class="input-effect" data-idx="' + idx + '" aria-label="Effect estimate" step="0.001" value="' + s.effect + '"></td>'
+        + '<td><input type="number" class="input-se" data-idx="' + idx + '" aria-label="Standard error" step="0.001" min="0.001" value="' + s.se + '"></td>'
         + '<td><button class="btn btn-danger btn-sm btn-del" data-idx="' + idx + '">Remove</button></td>'
         + '</tr>';
     });
