@@ -10,3 +10,6 @@ sentinel-findings.md
 sentinel-findings.jsonl
 review-findings.md
 review-findings.jsonl
+
+# Overmind auto-generated decision log
+DECISIONS.md

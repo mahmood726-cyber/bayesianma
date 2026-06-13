@@ -14,9 +14,11 @@ import sys
 import time
 import unittest
 
-# UTF-8 output for Windows cp1252
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
-sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
+# UTF-8 output for Windows cp1252. Guard against pytest: reassigning
+# sys.stdout at import time corrupts pytest's capture (see lessons.md).
+if "pytest" not in sys.modules:
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
 
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options

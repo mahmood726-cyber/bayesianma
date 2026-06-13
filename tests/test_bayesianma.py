@@ -321,10 +321,12 @@ class TestDarkMode:
     def test_24_dark_mode_toggle(self, driver):
         """Clicking dark mode button adds dark-mode class to body."""
         btn = driver.find_element(By.ID, "btnDarkMode")
-        was_dark = "dark-mode" in driver.find_element(By.TAG_NAME, "body").get_attribute("class")
+        # get_attribute("class") returns None when <body> has no class attribute
+        # (the initial state), so coerce to "" before the membership test.
+        was_dark = "dark-mode" in (driver.find_element(By.TAG_NAME, "body").get_attribute("class") or "")
         js_click(driver, btn)
         time.sleep(0.3)
-        is_dark = "dark-mode" in driver.find_element(By.TAG_NAME, "body").get_attribute("class")
+        is_dark = "dark-mode" in (driver.find_element(By.TAG_NAME, "body").get_attribute("class") or "")
         assert is_dark != was_dark, "Dark mode class should toggle"
         # Toggle back to original state
         js_click(driver, btn)

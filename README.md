@@ -13,7 +13,7 @@ Bayesian MA implements a Normal-Normal hierarchical model for random-effects met
 - Normal-Normal hierarchical model: y_i | mu, tau ~ N(mu, sigma_i^2 + tau^2)
 - Configurable Normal prior for grand mean mu with user-specified mean and SD
 - Half-Cauchy prior for heterogeneity tau (Polson and Scott 2012)
-- Numerical grid approximation over a fine (mu, tau) grid for exact posterior computation
+- Numerical grid approximation over tau (mu integrated analytically via conjugate Normal update) for posterior computation
 - Posterior density plots for both mu and tau
 - Bayesian forest plot with study-specific shrinkage estimates and 95% credible intervals
 - Shrinkage table showing how each study's estimate is pulled toward the grand mean
@@ -40,8 +40,8 @@ Bayesian MA implements a Normal-Normal hierarchical model for random-effects met
 
 - Hierarchical model: y_i ~ N(theta_i, sigma_i^2), theta_i ~ N(mu, tau^2)
 - Prior: mu ~ N(m_0, s_0^2), tau ~ Half-Cauchy(scale)
-- Grid approximation: joint posterior p(mu, tau | y) evaluated on a 200 x 200 grid
-- Marginal posteriors obtained by numerical integration
+- Grid approximation: posterior over tau evaluated on a 500-point grid; mu integrated analytically (conjugate Normal) at each tau
+- Marginal posteriors obtained by numerical integration over the tau grid
 - Study-specific posteriors (shrinkage): theta_i | y, mu, tau
 - Sensitivity analysis: Vague (s_0=10, scale=1), Weakly Informative (s_0=1, scale=0.5), Skeptical (s_0=0.5, scale=0.25)
 - Based on: Rover C, Friede T. Bayesian random-effects meta-analysis using the bayesmeta R package. JSS. 2017;93(6).
@@ -52,7 +52,7 @@ Bayesian MA implements a Normal-Normal hierarchical model for random-effects met
 
 ## Validation
 
-- 25/25 Selenium tests pass
+- 35/35 Selenium tests pass
 - Posterior summaries cross-validated against the R bayesmeta package (Rover and Friede 2017)
 
 ## Export
