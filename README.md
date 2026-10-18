@@ -10,6 +10,12 @@ Bayesian MA implements a Normal-Normal hierarchical model for random-effects met
 
 ## Features
 
+MAIF import accepts version 1.0 with a nonempty study list, unique string IDs,
+finite numeric effects and positive numeric standard errors. Invalid files leave
+existing inputs unchanged; missing values are never filled with invented effects
+or standard errors. Data, prior or effect-type changes clear previous results
+and reports until analysis is rerun. Reset also resets the stored effect type.
+
 - Normal-Normal hierarchical model: y_i | mu, tau ~ N(mu, sigma_i^2 + tau^2)
 - Configurable Normal prior for grand mean mu with user-specified mean and SD
 - Half-Cauchy prior for heterogeneity tau (Polson and Scott 2012)
