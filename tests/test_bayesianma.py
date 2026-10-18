@@ -6,6 +6,7 @@ shrinkage table, DIC, CSV paste, R code, MAIF, report generation, reset.
 """
 
 import io
+import json
 import os
 import sys
 import time
@@ -437,3 +438,92 @@ class TestResetAndMisc:
             and "net::ERR" not in l.get("message", "")
         ]
         assert len(real_errors) == 0, f"JS errors found: {real_errors}"
+
+
+@pytest.fixture
+def import_session(driver):
+    """Fresh UI state with explicitly fictional software transport rows."""
+    driver.execute_script("localStorage.clear();")
+    driver.refresh()
+    driver.execute_script("window.confirm = () => true;")
+    textarea = driver.find_element(By.ID, "csvPaste")
+    textarea.send_keys("fixture-one,0.2,0.1\nfixture-two,0.3,0.2")
+    driver.find_element(By.ID, "btnParseCsv").click()
+    return driver
+
+
+def saved_input(driver):
+    return driver.execute_script("return JSON.parse(localStorage.getItem('bayesianMA_v1'));")
+
+
+def upload_maif(driver, tmp_path, payload):
+    path = tmp_path / "software-fixture.json"
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    driver.find_element(By.ID, "maifFileInput").send_keys(str(path))
+    alert = WebDriverWait(driver, 10).until(EC.alert_is_present())
+    message = alert.text
+    alert.accept()
+    return message
+
+
+@pytest.mark.parametrize("invalid", ["version", "empty", "null", "missing-effect", "string-effect",
+    "boolean-effect", "missing-se", "zero-se", "negative-se", "blank-id", "duplicate-id", "effect-type"])
+def test_maif_rejects_invalid_input_without_changing_existing_data(import_session, tmp_path, invalid):
+    driver = import_session
+    row = {"id": "import-fixture", "yi": 0.2, "sei": 0.1}
+    payload = {"version": "1.0", "studies": [row], "metadata": {"effectType": "MD"}}
+    if invalid == "version": payload["version"] = "unsupported"
+    elif invalid == "empty": payload["studies"] = []
+    elif invalid == "null": payload["studies"] = [None]
+    elif invalid == "missing-effect": del row["yi"]
+    elif invalid == "string-effect": row["yi"] = ""
+    elif invalid == "boolean-effect": row["yi"] = True
+    elif invalid == "missing-se": del row["sei"]
+    elif invalid == "zero-se": row["sei"] = 0
+    elif invalid == "negative-se": row["sei"] = -1
+    elif invalid == "blank-id": row["id"] = "  "
+    elif invalid == "duplicate-id": payload["studies"] = [row, row.copy()]
+    elif invalid == "effect-type": payload["metadata"]["effectType"] = "unsupported"
+    before = saved_input(driver)
+    message = upload_maif(driver, tmp_path, payload)
+    assert "Imported" not in message
+    assert saved_input(driver) == before
+    assert driver.find_element(By.ID, "studyCount").text == "2"
+
+
+def run_fixture_analysis(driver):
+    driver.find_element(By.ID, "tabPriors").click()
+    driver.find_element(By.ID, "btnRunAnalysis").click()
+    WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.ID, "resultsContent")))
+
+
+def test_valid_maif_preserves_values_and_invalidates_old_results(import_session, tmp_path):
+    driver = import_session
+    run_fixture_analysis(driver)
+    payload = {"version": "1.0", "metadata": {"effectType": "MD"}, "studies": [
+        {"id": "new-fixture-one", "yi": 0.4, "sei": 0.2},
+        {"id": "new-fixture-two", "yi": 0.5, "sei": 0.3}]}
+    assert "Imported 2" in upload_maif(driver, tmp_path, payload)
+    saved = saved_input(driver)
+    assert saved["studies"] == [dict(study=s["id"], effect=s["yi"], se=s["sei"]) for s in payload["studies"]]
+    assert saved["effectType"] == "MD"
+    assert driver.find_element(By.ID, "resultsContent").value_of_css_property("display") == "none"
+    assert driver.find_element(By.ID, "reportContent").value_of_css_property("display") == "none"
+
+
+def test_reset_updates_saved_effect_type(import_session):
+    driver = import_session
+    driver.execute_script("const s=document.getElementById('selEffectType'); s.value='MD'; s.dispatchEvent(new Event('change')); ")
+    driver.find_element(By.ID, "btnReset").click()
+    driver.find_element(By.ID, "btnAddRow").click()
+    assert driver.find_element(By.ID, "selEffectType").get_attribute("value") == "logOR"
+    assert saved_input(driver)["effectType"] == "logOR"
+
+
+def test_editing_data_invalidates_old_results(import_session):
+    driver = import_session
+    run_fixture_analysis(driver)
+    driver.find_element(By.ID, "tabData").click()
+    driver.execute_script("const e=document.querySelector('.input-effect'); e.value='0.6'; e.dispatchEvent(new Event('change'));")
+    assert driver.find_element(By.ID, "resultsContent").value_of_css_property("display") == "none"
+    assert driver.find_element(By.ID, "reportContent").value_of_css_property("display") == "none"

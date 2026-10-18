@@ -13,3 +13,6 @@ review-findings.jsonl
 
 # Overmind auto-generated decision log
 DECISIONS.md
+
+# Local session checkpoint
+PROGRESS.md

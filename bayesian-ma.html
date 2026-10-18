@@ -1382,7 +1382,7 @@ pre.code-block {
     displayResults();
     generateReport();
     switchToTab('tabResults');
-    saveState();
+    saveState(true);
   }
 
   /* ==========================================================
@@ -1932,26 +1932,46 @@ pre.code-block {
     reader.onload = function(e) {
       try {
         var maif = JSON.parse(e.target.result);
-        if (!maif.version || !maif.studies || !Array.isArray(maif.studies)) {
-          alert('Invalid MAIF file: missing version or studies array.');
-          return;
+        if (!maif || maif.version !== '1.0' || !Array.isArray(maif.studies) || maif.studies.length === 0) {
+          throw new Error('MAIF version 1.0 and a nonempty studies array are required.');
         }
-        state.studies = maif.studies.map(function(s) {
+        var nextEffectType = state.effectType;
+        if (maif.metadata !== undefined) {
+          if (!maif.metadata || typeof maif.metadata !== 'object' || Array.isArray(maif.metadata)) {
+            throw new Error('MAIF metadata must be an object.');
+          }
+          if (maif.metadata.effectType !== undefined) {
+            if (['logOR', 'logRR', 'SMD', 'MD'].indexOf(maif.metadata.effectType) === -1) {
+              throw new Error('Unsupported effect type.');
+            }
+            nextEffectType = maif.metadata.effectType;
+          }
+        }
+        var identifiers = new Set();
+        var nextStudies = maif.studies.map(function(s, index) {
+          if (!s || typeof s !== 'object' || Array.isArray(s) ||
+              typeof s.id !== 'string' || !s.id.trim() || identifiers.has(s.id)) {
+            throw new Error('Study ' + (index + 1) + ' needs a unique, nonempty string id.');
+          }
+          if (typeof s.yi !== 'number' || !Number.isFinite(s.yi) ||
+              typeof s.sei !== 'number' || !Number.isFinite(s.sei) || s.sei <= 0) {
+            throw new Error('Study ' + (index + 1) + ' needs a finite numeric effect and positive SE.');
+          }
+          identifiers.add(s.id);
           return {
-            study: s.id || ('Study ' + (state.studies.length + 1)),
-            effect: (s.yi != null && isFinite(Number(s.yi))) ? Number(s.yi) : 0,
-            se: (s.sei != null && isFinite(Number(s.sei)) && Number(s.sei) > 0) ? Number(s.sei) : 1
+            study: s.id,
+            effect: s.yi,
+            se: s.sei
           };
         });
-        if (maif.metadata && maif.metadata.effectType) {
-          state.effectType = maif.metadata.effectType;
-          dom.selEffectType.value = state.effectType;
-        }
+        state.studies = nextStudies;
+        state.effectType = nextEffectType;
+        dom.selEffectType.value = state.effectType;
         renderDataTable();
         saveState();
         alert('Imported ' + maif.studies.length + ' studies from MAIF.');
       } catch (err) {
-        alert('Failed to parse MAIF file: ' + err.message);
+        alert('Unable to import MAIF file: ' + err.message);
       }
     };
     reader.readAsText(file);
@@ -1960,7 +1980,16 @@ pre.code-block {
   /* ==========================================================
      localStorage PERSISTENCE
      ========================================================== */
-  function saveState() {
+  function saveState(preserveResults) {
+    if (!preserveResults) {
+      state.results = null;
+      state.sensitivity = null;
+      state.freqHKSJ = null;
+      dom.resultsPlaceholder.style.display = '';
+      dom.resultsContent.style.display = 'none';
+      dom.reportPlaceholder.style.display = '';
+      dom.reportContent.style.display = 'none';
+    }
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({
         studies: state.studies,
@@ -1995,6 +2024,7 @@ pre.code-block {
     state.results = null;
     state.sensitivity = null;
     state.priors = { muMean: 0, muSD: 10, tauScale: 0.5 };
+    state.effectType = 'logOR';
     dom.selEffectType.value = 'logOR';
     dom.priorMuMean.value = 0;
     dom.priorMuSD.value = 10;
